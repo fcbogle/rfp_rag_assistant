@@ -29,7 +29,7 @@ pip install -e .[dev]
 Run the CLI:
 
 ```bash
-python -m rfp_rag_assistant.app.cli
+PYTHONPATH=src python -m rfp_rag_assistant.app.cli
 ```
 
 Run tests:
@@ -37,3 +37,22 @@ Run tests:
 ```bash
 python -m pytest -q
 ```
+
+## Configuration
+
+Runtime settings are loaded in this order:
+
+1. defaults in code
+2. `config/app.toml`
+3. `.env`
+4. exported shell environment variables
+
+Start from `.env.example` and adjust local values in `.env`.
+
+The config shape now mirrors the reusable service patterns from `IFULLMDEV`:
+
+- OpenAI chat settings
+- Azure OpenAI deployment settings
+- Chroma vector store settings
+- retrieval defaults
+- ingestion defaults

@@ -1,0 +1,37 @@
+[app]
+data_dir = "data"
+index_dir = "data/index"
+log_level = "INFO"
+default_prompt_mode = "retrieve_only"
+supported_extensions = [".docx", ".xlsx"]
+
+[openai]
+base_url = "https://api.openai.com/v1"
+chat_model = "gpt-5"
+reasoning_model = "gpt-5"
+responses_debug = false
+
+[azure_openai]
+api_version = "2024-10-21"
+chat_deployment = ""
+embed_deployment = ""
+
+[chroma]
+endpoint = ""
+api_key = ""
+tenant = ""
+database = ""
+collection = "rfp_answers"
+
+[retrieval]
+default_top_k = 5
+max_context_chars = 12000
+keyword_weight = 0.35
+semantic_weight = 0.65
+require_approved_answers = false
+
+[ingestion]
+word_chunk_max_chars = 4000
+excel_row_group_size = 1
+preserve_tables = true
+detect_question_answer_blocks = true

@@ -24,7 +24,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = build_parser().parse_args()
-    settings = AppSettings()
+    settings = AppSettings.load()
 
     if args.print_config:
         print(
@@ -33,7 +33,39 @@ def main() -> None:
                     "data_dir": str(settings.data_dir),
                     "index_dir": str(settings.index_dir),
                     "log_level": settings.log_level,
+                    "default_prompt_mode": settings.default_prompt_mode,
                     "supported_extensions": settings.supported_extensions,
+                    "openai": {
+                        "base_url": settings.openai.base_url,
+                        "chat_model": settings.openai.chat_model,
+                        "reasoning_model": settings.openai.reasoning_model,
+                        "responses_debug": settings.openai.responses_debug,
+                    },
+                    "azure_openai": {
+                        "endpoint": settings.azure_openai.endpoint,
+                        "api_version": settings.azure_openai.api_version,
+                        "chat_deployment": settings.azure_openai.chat_deployment,
+                        "embed_deployment": settings.azure_openai.embed_deployment,
+                    },
+                    "chroma": {
+                        "endpoint": settings.chroma.endpoint,
+                        "tenant": settings.chroma.tenant,
+                        "database": settings.chroma.database,
+                        "collection": settings.chroma.collection,
+                    },
+                    "retrieval": {
+                        "default_top_k": settings.retrieval.default_top_k,
+                        "max_context_chars": settings.retrieval.max_context_chars,
+                        "keyword_weight": settings.retrieval.keyword_weight,
+                        "semantic_weight": settings.retrieval.semantic_weight,
+                        "require_approved_answers": settings.retrieval.require_approved_answers,
+                    },
+                    "ingestion": {
+                        "word_chunk_max_chars": settings.ingestion.word_chunk_max_chars,
+                        "excel_row_group_size": settings.ingestion.excel_row_group_size,
+                        "preserve_tables": settings.ingestion.preserve_tables,
+                        "detect_question_answer_blocks": settings.ingestion.detect_question_answer_blocks,
+                    },
                 },
                 indent=2,
             )
