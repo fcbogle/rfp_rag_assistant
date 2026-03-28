@@ -32,9 +32,11 @@ def test_settings_loads_from_config_and_env_file(tmp_path: Path) -> None:
         "OPENAI_CHAT_MODEL=gpt-5-mini\n"
         "RFP_RAG_DEFAULT_TOP_K=6\n"
         "AZURE_STORAGE_ACCOUNT=blob-account\n"
-        "IFU_CHUNK_SIZE_TOKENS=512\n"
-        "IFU_OVERLAP_TOKENS=128\n"
-        "IFU_LOG_TO_FILE=true\n"
+        "RFP_RAG_BLOB_CONTAINER=rfp-rag-assistant\n"
+        "RFP_RAG_BLOB_PREFIX=incoming/\n"
+        "RFP_RAG_CHUNK_SIZE_TOKENS=512\n"
+        "RFP_RAG_OVERLAP_TOKENS=128\n"
+        "RFP_RAG_LOG_TO_FILE=true\n"
     )
 
     settings = AppSettings.load(env_file=env_file, config_file=config_file)
@@ -46,6 +48,8 @@ def test_settings_loads_from_config_and_env_file(tmp_path: Path) -> None:
     assert settings.supported_extensions == (".docx", ".xlsx")
     assert settings.openai.chat_model == "gpt-5-mini"
     assert settings.azure_storage.account == "blob-account"
+    assert settings.azure_storage.container == "rfp-rag-assistant"
+    assert settings.azure_storage.prefix == "incoming/"
     assert settings.chroma.collection == "rfp_history"
     assert settings.retrieval.default_top_k == 6
     assert settings.ingestion.word_chunk_max_chars == 5000

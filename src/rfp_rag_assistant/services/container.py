@@ -4,8 +4,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from rfp_rag_assistant.config import AppSettings, load_config
+from rfp_rag_assistant.loaders.blob_document_loader import BlobDocumentLoader
 from rfp_rag_assistant.models import RetrievalResult
 from rfp_rag_assistant.retrieval import Retriever
+from rfp_rag_assistant.services.blob_service import BlobService
 from rfp_rag_assistant.services.draft_service import DraftService
 from rfp_rag_assistant.services.health_service import HealthService
 from rfp_rag_assistant.services.query_service import QueryService
@@ -22,15 +24,35 @@ class NullRetriever:
         return []
 
 
+def build_blob_service(settings: AppSettings) -> BlobService:
+    return BlobService(settings=settings)
+
+
+def build_blob_document_loader(settings: AppSettings, blob_service: BlobService) -> BlobDocumentLoader:
+    return BlobDocumentLoader(
+        blob_service=blob_service,
+        container_name=settings.azure_storage.container,
+        prefix=settings.azure_storage.prefix,
+        supported_extensions=settings.supported_extensions,
+    )
+
+
 @dataclass(slots=True)
 class AppContainer:
     settings: AppSettings
     retriever: Retriever
+    blob_service: BlobService = field(init=False)
+    blob_document_loader: BlobDocumentLoader = field(init=False)
     query_service: QueryService = field(init=False)
     draft_service: DraftService = field(init=False)
     health_service: HealthService = field(init=False)
 
     def __post_init__(self) -> None:
+        self.blob_service = build_blob_service(settings=self.settings)
+        self.blob_document_loader = build_blob_document_loader(
+            settings=self.settings,
+            blob_service=self.blob_service,
+        )
         self.query_service = QueryService(retriever=self.retriever, settings=self.settings)
         self.draft_service = DraftService(query_service=self.query_service, settings=self.settings)
         self.health_service = HealthService(settings=self.settings)

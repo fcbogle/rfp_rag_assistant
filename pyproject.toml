@@ -7,12 +7,14 @@ name = "rfp-rag-assistant"
 version = "0.1.0"
 description = "RAG-based assistant for RFP ingestion, retrieval, and grounded drafting."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.12"
 license = { text = "Proprietary" }
 authors = [
   { name = "Frank Bogle" }
 ]
-dependencies = []
+dependencies = [
+  "azure-storage-blob>=12.25,<13",
+]
 
 [project.optional-dependencies]
 dev = [

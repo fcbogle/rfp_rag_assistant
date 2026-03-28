@@ -4,8 +4,9 @@ Version: 0.1.0
 Summary: RAG-based assistant for RFP ingestion, retrieval, and grounded drafting.
 Author: Frank Bogle
 License: Proprietary
-Requires-Python: >=3.11
+Requires-Python: <3.12,>=3.11
 Description-Content-Type: text/markdown
+Requires-Dist: azure-storage-blob<13,>=12.25
 Provides-Extra: dev
 Requires-Dist: pytest>=8.0; extra == "dev"
 

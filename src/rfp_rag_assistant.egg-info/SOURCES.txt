@@ -11,6 +11,7 @@ src/rfp_rag_assistant.egg-info/requires.txt
 src/rfp_rag_assistant.egg-info/top_level.txt
 src/rfp_rag_assistant/app/__init__.py
 src/rfp_rag_assistant/app/cli.py
+src/rfp_rag_assistant/app/main.py
 src/rfp_rag_assistant/app/pipeline.py
 src/rfp_rag_assistant/chunkers/__init__.py
 src/rfp_rag_assistant/chunkers/base.py
@@ -31,12 +32,15 @@ src/rfp_rag_assistant/retrieval/__init__.py
 src/rfp_rag_assistant/retrieval/base.py
 src/rfp_rag_assistant/retrieval/service.py
 src/rfp_rag_assistant/services/__init__.py
+src/rfp_rag_assistant/services/blob_service.py
 src/rfp_rag_assistant/services/container.py
 src/rfp_rag_assistant/services/draft_service.py
 src/rfp_rag_assistant/services/health_service.py
 src/rfp_rag_assistant/services/query_service.py
+tests/test_blob_service.py
 tests/test_cli_config.py
 tests/test_config_wrapper.py
+tests/test_main.py
 tests/test_models.py
 tests/test_pipeline.py
 tests/test_services.py

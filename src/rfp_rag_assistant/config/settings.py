@@ -49,6 +49,25 @@ def _as_int(value: str | int | None, default: int) -> int:
     return int(value)
 
 
+def _resolve_value(
+    env_values: dict[str, str],
+    config_values: dict[str, Any],
+    primary_env: str,
+    *,
+    default: Any,
+    config_key: str | None = None,
+) -> Any:
+    key = config_key or primary_env.lower()
+    value = config_values.get(key, default)
+    if primary_env in env_values:
+        value = env_values[primary_env]
+    direct_override = os.getenv(primary_env)
+    if direct_override not in (None, ""):
+        value = direct_override
+
+    return value
+
+
 @dataclass(slots=True, frozen=True)
 class OpenAISettings:
     base_url: str = "https://api.openai.com/v1"
@@ -71,6 +90,8 @@ class AzureOpenAISettings:
 class AzureStorageSettings:
     account: str = ""
     key: str = ""
+    container: str = "rfp-rag-assistant"
+    prefix: str = "incoming/"
 
 
 @dataclass(slots=True, frozen=True)
@@ -240,6 +261,14 @@ class AppSettings:
                     "AZURE_STORAGE_KEY",
                     env_values.get("AZURE_STORAGE_KEY", azure_storage_config.get("key", "")),
                 ),
+                container=os.getenv(
+                    "RFP_RAG_BLOB_CONTAINER",
+                    env_values.get("RFP_RAG_BLOB_CONTAINER", azure_storage_config.get("container", "rfp-rag-assistant")),
+                ),
+                prefix=os.getenv(
+                    "RFP_RAG_BLOB_PREFIX",
+                    env_values.get("RFP_RAG_BLOB_PREFIX", azure_storage_config.get("prefix", "incoming/")),
+                ),
             ),
             chroma=ChromaSettings(
                 endpoint=os.getenv(
@@ -340,71 +369,53 @@ class AppSettings:
                     default=True,
                 ),
                 chunk_size_tokens=_as_int(
-                    os.getenv(
+                    _resolve_value(
+                        env_values,
+                        ingestion_config,
                         "RFP_RAG_CHUNK_SIZE_TOKENS",
-                        os.getenv(
-                            "IFU_CHUNK_SIZE_TOKENS",
-                            env_values.get(
-                                "RFP_RAG_CHUNK_SIZE_TOKENS",
-                                env_values.get(
-                                    "IFU_CHUNK_SIZE_TOKENS",
-                                    ingestion_config.get("chunk_size_tokens", 300),
-                                ),
-                            ),
-                        ),
+                        config_key="chunk_size_tokens",
+                        default=300,
                     ),
                     default=300,
                 ),
                 overlap_tokens=_as_int(
-                    os.getenv(
+                    _resolve_value(
+                        env_values,
+                        ingestion_config,
                         "RFP_RAG_OVERLAP_TOKENS",
-                        os.getenv(
-                            "IFU_OVERLAP_TOKENS",
-                            env_values.get(
-                                "RFP_RAG_OVERLAP_TOKENS",
-                                env_values.get(
-                                    "IFU_OVERLAP_TOKENS",
-                                    ingestion_config.get("overlap_tokens", 100),
-                                ),
-                            ),
-                        ),
+                        config_key="overlap_tokens",
+                        default=100,
                     ),
                     default=100,
                 ),
             ),
             logging=LoggingSettings(
                 level=os.getenv(
-                    "IFU_LOG_LEVEL",
-                    os.getenv(
-                        "RFP_RAG_LOG_LEVEL",
-                        env_values.get(
-                            "IFU_LOG_LEVEL",
-                            env_values.get("RFP_RAG_LOG_LEVEL", logging_config.get("level", "INFO")),
-                        ),
-                    ),
+                    "RFP_RAG_LOG_LEVEL",
+                    env_values.get("RFP_RAG_LOG_LEVEL", logging_config.get("level", "INFO")),
                 ),
                 to_file=_as_bool(
                     os.getenv(
-                        "IFU_LOG_TO_FILE",
-                        env_values.get("IFU_LOG_TO_FILE", logging_config.get("to_file", False)),
+                        "RFP_RAG_LOG_TO_FILE",
+                        env_values.get("RFP_RAG_LOG_TO_FILE", logging_config.get("to_file", False)),
                     ),
                     default=False,
                 ),
                 file=os.getenv(
-                    "IFU_LOG_FILE",
-                    env_values.get("IFU_LOG_FILE", logging_config.get("file", "logs/rfp_rag_assistant.log")),
+                    "RFP_RAG_LOG_FILE",
+                    env_values.get("RFP_RAG_LOG_FILE", logging_config.get("file", "logs/rfp_rag_assistant.log")),
                 ),
                 max_bytes=_as_int(
                     os.getenv(
-                        "IFU_LOG_MAX_BYTES",
-                        env_values.get("IFU_LOG_MAX_BYTES", logging_config.get("max_bytes", 1_048_576)),
+                        "RFP_RAG_LOG_MAX_BYTES",
+                        env_values.get("RFP_RAG_LOG_MAX_BYTES", logging_config.get("max_bytes", 1_048_576)),
                     ),
                     default=1_048_576,
                 ),
                 backup_count=_as_int(
                     os.getenv(
-                        "IFU_LOG_BACKUP_COUNT",
-                        env_values.get("IFU_LOG_BACKUP_COUNT", logging_config.get("backup_count", 5)),
+                        "RFP_RAG_LOG_BACKUP_COUNT",
+                        env_values.get("RFP_RAG_LOG_BACKUP_COUNT", logging_config.get("backup_count", 5)),
                     ),
                     default=5,
                 ),

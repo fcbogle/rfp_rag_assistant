@@ -4,7 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
-from rfp_rag_assistant.config import AppSettings
+from rfp_rag_assistant.app.main import build_application
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -24,7 +24,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = build_parser().parse_args()
-    settings = AppSettings.load()
+    app = build_application()
+    settings = app.settings
 
     if args.print_config:
         print(
@@ -49,6 +50,8 @@ def main() -> None:
                     },
                     "azure_storage": {
                         "account": settings.azure_storage.account,
+                        "container": settings.azure_storage.container,
+                        "prefix": settings.azure_storage.prefix,
                     },
                     "chroma": {
                         "endpoint": settings.chroma.endpoint,

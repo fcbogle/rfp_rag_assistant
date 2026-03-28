@@ -49,10 +49,15 @@ Runtime settings are loaded in this order:
 
 Start from `.env.example` and adjust local values in `.env`.
 
-The config shape now mirrors the reusable service patterns from `IFULLMDEV`:
+The config shape is organised around:
 
 - OpenAI chat settings
 - Azure OpenAI deployment settings
 - Chroma vector store settings
 - retrieval defaults
 - ingestion defaults
+
+For token sizing, prefer the RFP-native env vars:
+
+- `RFP_RAG_CHUNK_SIZE_TOKENS`
+- `RFP_RAG_OVERLAP_TOKENS`

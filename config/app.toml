@@ -19,6 +19,8 @@ embed_deployment = ""
 [azure_storage]
 account = ""
 key = ""
+container = "rfp-rag-assistant"
+prefix = "incoming/"
 
 [chroma]
 endpoint = ""
