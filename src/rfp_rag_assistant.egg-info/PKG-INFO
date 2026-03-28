@@ -1,0 +1,69 @@
+Metadata-Version: 2.4
+Name: rfp-rag-assistant
+Version: 0.1.0
+Summary: RAG-based assistant for RFP ingestion, retrieval, and grounded drafting.
+Author: Frank Bogle
+License: Proprietary
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0; extra == "dev"
+
+# rfp_rag_assistant
+
+RFP knowledge reuse and grounded response generation assistant.
+
+## Scope
+
+This project is structured for:
+
+- Word and Excel ingestion
+- structure-aware chunking
+- metadata-rich retrieval
+- grounded answer generation
+- source traceability
+
+## Layout
+
+The codebase uses a `src/` layout with the package at `src/rfp_rag_assistant/`.
+
+## Quick Start
+
+Create an environment and install in editable mode:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e .[dev]
+```
+
+Run the CLI:
+
+```bash
+PYTHONPATH=src python -m rfp_rag_assistant.app.cli
+```
+
+Run tests:
+
+```bash
+python -m pytest -q
+```
+
+## Configuration
+
+Runtime settings are loaded in this order:
+
+1. defaults in code
+2. `config/app.toml`
+3. `.env`
+4. exported shell environment variables
+
+Start from `.env.example` and adjust local values in `.env`.
+
+The config shape now mirrors the reusable service patterns from `IFULLMDEV`:
+
+- OpenAI chat settings
+- Azure OpenAI deployment settings
+- Chroma vector store settings
+- retrieval defaults
+- ingestion defaults

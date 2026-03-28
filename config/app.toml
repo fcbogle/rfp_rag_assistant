@@ -16,6 +16,10 @@ api_version = "2024-10-21"
 chat_deployment = ""
 embed_deployment = ""
 
+[azure_storage]
+account = ""
+key = ""
+
 [chroma]
 endpoint = ""
 api_key = ""
@@ -35,3 +39,12 @@ word_chunk_max_chars = 4000
 excel_row_group_size = 1
 preserve_tables = true
 detect_question_answer_blocks = true
+chunk_size_tokens = 300
+overlap_tokens = 100
+
+[logging]
+level = "INFO"
+to_file = false
+file = "logs/rfp_rag_assistant.log"
+max_bytes = 1048576
+backup_count = 5

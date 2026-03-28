@@ -68,6 +68,12 @@ class AzureOpenAISettings:
 
 
 @dataclass(slots=True, frozen=True)
+class AzureStorageSettings:
+    account: str = ""
+    key: str = ""
+
+
+@dataclass(slots=True, frozen=True)
 class ChromaSettings:
     endpoint: str = ""
     api_key: str = ""
@@ -91,6 +97,17 @@ class IngestionSettings:
     excel_row_group_size: int = 1
     preserve_tables: bool = True
     detect_question_answer_blocks: bool = True
+    chunk_size_tokens: int = 300
+    overlap_tokens: int = 100
+
+
+@dataclass(slots=True, frozen=True)
+class LoggingSettings:
+    level: str = "INFO"
+    to_file: bool = False
+    file: str = "logs/rfp_rag_assistant.log"
+    max_bytes: int = 1_048_576
+    backup_count: int = 5
 
 
 @dataclass(slots=True)
@@ -102,9 +119,11 @@ class AppSettings:
     supported_extensions: tuple[str, ...] = field(default_factory=lambda: (".docx", ".xlsx"))
     openai: OpenAISettings = field(default_factory=OpenAISettings)
     azure_openai: AzureOpenAISettings = field(default_factory=AzureOpenAISettings)
+    azure_storage: AzureStorageSettings = field(default_factory=AzureStorageSettings)
     chroma: ChromaSettings = field(default_factory=ChromaSettings)
     retrieval: RetrievalSettings = field(default_factory=RetrievalSettings)
     ingestion: IngestionSettings = field(default_factory=IngestionSettings)
+    logging: LoggingSettings = field(default_factory=LoggingSettings)
 
     @classmethod
     def load(
@@ -122,9 +141,11 @@ class AppSettings:
         app_config = config_values.get("app", {})
         openai_config = config_values.get("openai", {})
         azure_openai_config = config_values.get("azure_openai", {})
+        azure_storage_config = config_values.get("azure_storage", {})
         chroma_config = config_values.get("chroma", {})
         retrieval_config = config_values.get("retrieval", {})
         ingestion_config = config_values.get("ingestion", {})
+        logging_config = config_values.get("logging", {})
         source_values = {
             "data_dir": env_values.get("RFP_RAG_DATA_DIR", app_config.get("data_dir", "data")),
             "index_dir": env_values.get("RFP_RAG_INDEX_DIR", app_config.get("index_dir", "data/index")),
@@ -208,6 +229,16 @@ class AppSettings:
                 embed_deployment=os.getenv(
                     "AZURE_OPENAI_EMBED_DEPLOYMENT",
                     env_values.get("AZURE_OPENAI_EMBED_DEPLOYMENT", azure_openai_config.get("embed_deployment", "")),
+                ),
+            ),
+            azure_storage=AzureStorageSettings(
+                account=os.getenv(
+                    "AZURE_STORAGE_ACCOUNT",
+                    env_values.get("AZURE_STORAGE_ACCOUNT", azure_storage_config.get("account", "")),
+                ),
+                key=os.getenv(
+                    "AZURE_STORAGE_KEY",
+                    env_values.get("AZURE_STORAGE_KEY", azure_storage_config.get("key", "")),
                 ),
             ),
             chroma=ChromaSettings(
@@ -307,6 +338,75 @@ class AppSettings:
                         ),
                     ),
                     default=True,
+                ),
+                chunk_size_tokens=_as_int(
+                    os.getenv(
+                        "RFP_RAG_CHUNK_SIZE_TOKENS",
+                        os.getenv(
+                            "IFU_CHUNK_SIZE_TOKENS",
+                            env_values.get(
+                                "RFP_RAG_CHUNK_SIZE_TOKENS",
+                                env_values.get(
+                                    "IFU_CHUNK_SIZE_TOKENS",
+                                    ingestion_config.get("chunk_size_tokens", 300),
+                                ),
+                            ),
+                        ),
+                    ),
+                    default=300,
+                ),
+                overlap_tokens=_as_int(
+                    os.getenv(
+                        "RFP_RAG_OVERLAP_TOKENS",
+                        os.getenv(
+                            "IFU_OVERLAP_TOKENS",
+                            env_values.get(
+                                "RFP_RAG_OVERLAP_TOKENS",
+                                env_values.get(
+                                    "IFU_OVERLAP_TOKENS",
+                                    ingestion_config.get("overlap_tokens", 100),
+                                ),
+                            ),
+                        ),
+                    ),
+                    default=100,
+                ),
+            ),
+            logging=LoggingSettings(
+                level=os.getenv(
+                    "IFU_LOG_LEVEL",
+                    os.getenv(
+                        "RFP_RAG_LOG_LEVEL",
+                        env_values.get(
+                            "IFU_LOG_LEVEL",
+                            env_values.get("RFP_RAG_LOG_LEVEL", logging_config.get("level", "INFO")),
+                        ),
+                    ),
+                ),
+                to_file=_as_bool(
+                    os.getenv(
+                        "IFU_LOG_TO_FILE",
+                        env_values.get("IFU_LOG_TO_FILE", logging_config.get("to_file", False)),
+                    ),
+                    default=False,
+                ),
+                file=os.getenv(
+                    "IFU_LOG_FILE",
+                    env_values.get("IFU_LOG_FILE", logging_config.get("file", "logs/rfp_rag_assistant.log")),
+                ),
+                max_bytes=_as_int(
+                    os.getenv(
+                        "IFU_LOG_MAX_BYTES",
+                        env_values.get("IFU_LOG_MAX_BYTES", logging_config.get("max_bytes", 1_048_576)),
+                    ),
+                    default=1_048_576,
+                ),
+                backup_count=_as_int(
+                    os.getenv(
+                        "IFU_LOG_BACKUP_COUNT",
+                        env_values.get("IFU_LOG_BACKUP_COUNT", logging_config.get("backup_count", 5)),
+                    ),
+                    default=5,
                 ),
             ),
         )

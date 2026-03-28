@@ -1,0 +1,2 @@
+[console_scripts]
+rfp-rag = rfp_rag_assistant.app.cli:main

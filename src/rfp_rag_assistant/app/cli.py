@@ -47,6 +47,9 @@ def main() -> None:
                         "chat_deployment": settings.azure_openai.chat_deployment,
                         "embed_deployment": settings.azure_openai.embed_deployment,
                     },
+                    "azure_storage": {
+                        "account": settings.azure_storage.account,
+                    },
                     "chroma": {
                         "endpoint": settings.chroma.endpoint,
                         "tenant": settings.chroma.tenant,
@@ -65,6 +68,15 @@ def main() -> None:
                         "excel_row_group_size": settings.ingestion.excel_row_group_size,
                         "preserve_tables": settings.ingestion.preserve_tables,
                         "detect_question_answer_blocks": settings.ingestion.detect_question_answer_blocks,
+                        "chunk_size_tokens": settings.ingestion.chunk_size_tokens,
+                        "overlap_tokens": settings.ingestion.overlap_tokens,
+                    },
+                    "logging": {
+                        "level": settings.logging.level,
+                        "to_file": settings.logging.to_file,
+                        "file": settings.logging.file,
+                        "max_bytes": settings.logging.max_bytes,
+                        "backup_count": settings.logging.backup_count,
                     },
                 },
                 indent=2,
