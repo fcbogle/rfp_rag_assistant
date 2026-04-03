@@ -40,6 +40,42 @@ def test_chroma_schema_flattens_combined_qa_metadata() -> None:
     assert record.metadata["section_title"] == "ITT01 - Clinical Governance"
 
 
+def test_chroma_schema_flattens_master_rfp_metadata() -> None:
+    chunk = Chunk(
+        chunk_id="ITT01-chunk-1",
+        text="Question metadata: ITT01 | Clinical Governance",
+        embedding_text="Question metadata: ITT01 | Clinical Governance",
+        metadata=ChunkMetadata(
+            source_file=Path("ITT01-Clinical Governance-Blatchford.docx"),
+            file_type="docx",
+            document_type="combined_qa",
+            chunk_type="qa_pair",
+            issuing_authority="Sussex Community NHS Foundation Trust",
+            customer="Sussex Community NHS Foundation Trust",
+            rfp_id="scft-wheelchair-2026",
+            rfp_title="Wheelchair and Specialist Seating Service",
+            extra={
+                "section_title": "ITT01 - Clinical Governance",
+                "question_id": "ITT01",
+                "question_title": "Clinical Governance",
+                "question_text": "Please describe your clinical governance arrangements.",
+            },
+        ),
+        structured_content={
+            "question_id": "ITT01",
+            "question_title": "Clinical Governance",
+            "question_text": "Please describe your clinical governance arrangements.",
+        },
+    )
+
+    metadata = flatten_chunk_metadata(chunk)
+
+    assert metadata["issuing_authority"] == "Sussex Community NHS Foundation Trust"
+    assert metadata["customer"] == "Sussex Community NHS Foundation Trust"
+    assert metadata["rfp_id"] == "scft-wheelchair-2026"
+    assert metadata["rfp_title"] == "Wheelchair and Specialist Seating Service"
+
+
 def test_chroma_schema_flattens_response_supporting_material_spreadsheet_metadata() -> None:
     chunk = Chunk(
         chunk_id="mobilisation-team-row-6-chunk-1",

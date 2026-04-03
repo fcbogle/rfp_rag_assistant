@@ -23,6 +23,9 @@ class ChunkMetadata:
     file_type: str
     document_type: str
     chunk_type: str
+    issuing_authority: str | None = None
+    rfp_id: str | None = None
+    rfp_title: str | None = None
     customer: str | None = None
     date: date | None = None
     product_or_service_area: str | None = None
@@ -69,3 +72,13 @@ class RetrievalResult:
     chunk: Chunk
     score: float
     match_reason: str
+
+
+@dataclass(slots=True, frozen=True)
+class MasterRFPMetadata:
+    issuing_authority: str | None = None
+    customer: str | None = None
+    rfp_id: str | None = None
+    rfp_title: str | None = None
+    region: str | None = None
+    product_or_service_area: str | None = None

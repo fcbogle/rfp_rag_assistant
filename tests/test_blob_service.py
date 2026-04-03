@@ -11,6 +11,7 @@ def test_blob_service_reports_configuration_and_builds_blob_paths() -> None:
 
     assert service.is_configured() is True
     assert service.blob_path("rfp", "incoming", "example.docx") == "rfp/incoming/example.docx"
+    assert service.resolve_blob_name(Path("combined_qa/ITT01.docx")) == "combined_qa/ITT01.docx"
     assert "AccountName=acct" in service.connection_string()
 
 
@@ -139,6 +140,29 @@ def test_blob_service_upload_file_to_blob_uses_local_file(tmp_path: Path) -> Non
     assert fake_container.uploaded[0]["content_type"] == (
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     )
+
+
+def test_blob_service_upload_file_to_blob_preserves_relative_path_from_root(tmp_path: Path) -> None:
+    fake_container = FakeContainerClient()
+    fake_client = FakeBlobServiceClient(container=fake_container)
+    settings = AppSettings(azure_storage=AzureStorageSettings(account="acct", key="secret"))
+    service = BlobService(settings=settings, client_factory=lambda _: fake_client)
+
+    source_root = tmp_path / "RFP"
+    local_path = source_root / "combined_qa" / "ITT01-Clinical Governance-Blatchford.docx"
+    local_path.parent.mkdir(parents=True)
+    local_path.write_bytes(b"itt-content")
+
+    blob_name = service.upload_file_to_blob(
+        "rfp-rag-assistant",
+        local_path,
+        relative_to=source_root,
+        overwrite=True,
+    )
+
+    assert blob_name == "combined_qa/ITT01-Clinical Governance-Blatchford.docx"
+    assert fake_container.uploaded[0]["name"] == blob_name
+    assert fake_container.uploaded[0]["data"] == b"itt-content"
 
 
 def test_blob_service_download_blob_to_file_writes_local_file(tmp_path: Path) -> None:

@@ -28,6 +28,25 @@ def test_app_container_builds_service_graph() -> None:
     assert container.blob_service.is_configured() is True
     assert container.blob_document_loader.container_name == "rfp-rag-assistant"
     assert container.blob_document_loader.prefix == "incoming/"
+    assert set(container.parsers) == {
+        "combined_qa",
+        "background_requirements",
+        "response_supporting_material",
+        "tender_details",
+        "external_reference",
+    }
+    assert set(container.chunkers) == {
+        "combined_qa",
+        "background_requirements",
+        "response_supporting_material",
+        "tender_details",
+        "external_reference",
+    }
+    assert container.chroma_indexer.embedder is container.embedder
+    assert container.ingestion_service.blob_document_loader is container.blob_document_loader
+    assert container.ingestion_service.parsers is container.parsers
+    assert container.ingestion_service.chunkers is container.chunkers
+    assert container.ingestion_service.chroma_indexer is container.chroma_indexer
     assert container.query_service.settings.retrieval.default_top_k == 7
     assert container.draft_service.query_service is container.query_service
 

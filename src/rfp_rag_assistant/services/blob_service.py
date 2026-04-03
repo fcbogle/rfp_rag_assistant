@@ -101,11 +101,12 @@ class BlobService:
         local_path: Path,
         *,
         blob_name: str | None = None,
+        relative_to: Path | None = None,
         overwrite: bool = False,
         metadata: dict[str, str] | None = None,
         content_type: str | None = None,
     ) -> str:
-        target_blob_name = blob_name or local_path.name
+        target_blob_name = self.resolve_blob_name(local_path, blob_name=blob_name, relative_to=relative_to)
         guessed_content_type, _ = mimetypes.guess_type(str(local_path))
         self.upload_blob_bytes(
             container_name,
@@ -120,3 +121,18 @@ class BlobService:
     @staticmethod
     def blob_path(*parts: str) -> str:
         return "/".join(part.strip("/") for part in parts if part and part.strip("/"))
+
+    def resolve_blob_name(
+        self,
+        local_path: Path,
+        *,
+        blob_name: str | None = None,
+        relative_to: Path | None = None,
+    ) -> str:
+        if blob_name:
+            return blob_name
+        if relative_to is not None:
+            return local_path.relative_to(relative_to).as_posix()
+        if not local_path.is_absolute():
+            return local_path.as_posix()
+        return local_path.name

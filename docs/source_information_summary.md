@@ -308,6 +308,46 @@ For normal RFP response generation and evidence retrieval, the current working p
 - ingest separately and rank down for normal service-answer retrieval
 - retain for compliance, submission, and procurement-process queries
 
+### Blob Naming And Classification Implications
+
+The current operational assumption is that Blob storage becomes the source-of-truth location for ingestion.
+
+That means blob names should preserve the local classification path, for example:
+
+- `combined_qa/ITT01-Clinical Governance-Blatchford.docx`
+- `response_supporting_material/2.6.1_Appendix_Mobilisation_Plan.xlsx`
+- `background_requirements/Background information - Wheelchair and Specialist Seating Service.docx`
+- `tender_details/3. SCFT - ... - ITT Section A vFinal.pdf`
+
+#### Why Blob Paths Matter
+
+- the first path segment gives the document classification directly
+- classification can therefore be inferred deterministically from the blob prefix
+- parser and chunker routing does not need to depend on weaker filename heuristics
+- the Blob layout mirrors the local source-organisation taxonomy already established
+
+#### Upload Design
+
+The Blob upload path now supports preserving relative local paths rather than flattening uploads to bare filenames.
+
+Current behavior:
+
+- if an explicit `blob_name` is passed, use it
+- else if `relative_to` is passed, upload using the file path relative to that root
+- else if the local path is already relative, preserve that relative path
+- else fall back to the bare filename
+
+Example:
+
+- local file:
+  - `/Users/frankbogle/Documents/RFP/combined_qa/ITT01-Clinical Governance-Blatchford.docx`
+- upload call with:
+  - `relative_to=/Users/frankbogle/Documents/RFP`
+- resulting blob name:
+  - `combined_qa/ITT01-Clinical Governance-Blatchford.docx`
+
+This is important because the blob name itself now carries the classification signal needed by the ingestion pipeline.
+
 ### Embedded Materials
 
 - embedded `.docx` and `.xlsx` should be treated as separate source documents after review and classification
@@ -352,6 +392,78 @@ The prototype now includes implemented parser and chunker paths for all four cla
   - token-window fallback splitting
   - overlap handling
 
+## Runtime Assembly And Ingestion Orchestration
+
+The prototype has now moved beyond isolated parser/chunker classes and includes runtime assembly of the ingestion dependencies.
+
+### AppContainer Responsibilities
+
+`AppContainer` now builds and exposes:
+
+- `BlobService`
+- `BlobDocumentLoader`
+- parser registry
+- chunker registry
+- `AzureOpenAIEmbedder`
+- `ChromaIndexer`
+- `IngestionService`
+
+This means dependency construction is centralized in one runtime assembly layer rather than being scattered across preview utilities and tests.
+
+### Factory Method Design
+
+The container now uses explicit construction helpers for:
+
+- parsers
+- chunkers
+- embedder
+- Chroma indexer
+- ingestion service
+
+Rationale:
+
+- keeps runtime object creation centralized
+- makes the service graph easier to test
+- provides a clean place to override dependencies later if needed
+- keeps orchestration code out of individual parser/chunker classes
+
+### Ingestion Service Design
+
+Implemented component:
+
+- `IngestionService`
+
+Current responsibility:
+
+1. list or load documents from Blob storage
+2. infer `document_type` from the blob path prefix
+3. select the appropriate parser from the parser registry
+4. select the appropriate chunker from the chunker registry
+5. parse and chunk the document
+6. send the resulting chunks to the Chroma indexer
+
+#### Why An Ingestion Service Was Needed
+
+- `AppContainer` should assemble dependencies, not execute the ingestion workflow itself
+- parsers, chunkers, embedder, and indexer should remain focused on their own responsibilities
+- the orchestration layer is where document loading, routing, and indexing belong
+
+This keeps the architecture aligned with the separation-of-concerns principle defined for the project.
+
+### Blob Bytes To Chunks Flow
+
+At present, Blob-loaded documents are received as bytes.
+
+Current flow:
+
+1. `BlobDocumentLoader` downloads blob bytes
+2. `IngestionService` stages those bytes to a temporary file using the original filename
+3. the parser reads the staged file
+4. the chunker creates `Chunk` objects from the parsed structure
+5. the Chroma indexer validates metadata, embeds, and upserts
+
+This staging step exists because the current Word, Excel, and PDF parsers operate from file paths rather than directly from in-memory byte streams.
+
 ## Design Rationale By Classification And File Shape
 
 The parser and chunker design has been driven by actual document shape rather than a single generic ingestion rule.
@@ -375,6 +487,21 @@ The parser and chunker design has been driven by actual document shape rather th
 - capture answer text from the table and following body paragraphs
 
 This design was chosen because the `ITTxx` files expose a strong and repeatable Q&A pattern.
+
+#### Parser Example
+
+The structured `ITTxx` parser reads the internal Word document XML directly.
+
+Representative flow:
+
+- open the `.docx` as a ZIP package
+- read `word/document.xml`
+- walk the document body in order
+- extract question metadata from the first table
+- collect answer paragraphs after the `Response` marker
+- return a `ParsedDocument` with one `ParsedSection` of kind `qa_pair`
+
+This approach is possible because `.docx` is a structured Office format and exposes its document model through XML.
 
 #### Chunker Design Rationale
 
@@ -402,6 +529,21 @@ This design supports future answer reuse and retrieval because the chunk always 
 - convert tables into text rows rather than dropping them
 
 This design was chosen because the real files show meaningful section structure, but not always with perfectly consistent styling.
+
+#### Parser Example
+
+The Word section parser also reads Office XML directly rather than flattening the document to plain text.
+
+Representative flow:
+
+- open the `.docx` ZIP package
+- read `word/document.xml`
+- inspect paragraphs and tables in document order
+- detect headings from paragraph styles or bold standalone lines
+- accumulate section text until the next heading
+- convert tables into row-style text instead of dropping them
+
+This preserves heading hierarchy and table context that would be lost in a flat-text approach.
 
 #### Chunker Design Rationale
 
@@ -438,6 +580,23 @@ For `.pdf`:
 - merge obvious layout artifacts back into parent sections
 
 This design was chosen because the classification contains mixed evidence material rather than a single document pattern.
+
+#### Excel Parser Example
+
+The Excel parser does not read XML manually. Instead, it uses `openpyxl` to work with workbook structure directly.
+
+Representative flow:
+
+- open the workbook with `openpyxl.load_workbook(..., data_only=True)`
+- iterate worksheets
+- inspect non-empty rows
+- detect likely header rows or contact/profile sheet patterns
+- emit:
+  - row-level parsed sections
+  - row-group/profile sections
+  - sheet summary sections when the sheet is not truly tabular
+
+This is more appropriate for Excel because the project needs workbook and row semantics, not low-level XML handling.
 
 #### Chunker Design Rationale
 
@@ -816,6 +975,46 @@ This sits alongside the newer parser/chunker logging so an ingestion run can be 
 - chunk creation
 - embedding
 - collection upsert
+
+## Logging Design
+
+The prototype now includes a first-pass logging design across:
+
+- parsers
+- chunkers
+- embedder
+- Chroma indexer
+- ingestion service
+
+Current log coverage includes:
+
+- question/answer extraction counts for structured and narrative `combined_qa`
+- section, heading, and table counts for Word section parsing
+- sheet and row-group counts for Excel supporting-material parsing
+- PDF page, line, and section counts
+- chunk totals by document
+- embedding batch and vector counts
+- Chroma upsert activity by collection
+- ingestion summaries by document and run
+
+### Log Format
+
+The current log format includes:
+
+- timestamp
+- log level
+- logger/module name
+- function name
+- message
+
+Example:
+
+- `2026-04-03 15:42:18,731 INFO rfp_rag_assistant.parsers.itt_combined_qa_parser.parse_file: Parsed ITT combined QA file=ITT01-Clinical Governance-Blatchford.docx question_id=ITT01 title=Clinical Governance answer_chars=4821`
+
+Rationale:
+
+- function names improve traceability without requiring every class name to be logged explicitly
+- this gives enough runtime context for ingestion debugging while keeping the logging design simple
 
 ### Current Status
 
