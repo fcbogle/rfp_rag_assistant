@@ -27,6 +27,7 @@ endpoint = ""
 api_key = ""
 tenant = ""
 database = ""
+namespace = "test_rfp"
 collection = "rfp_answers"
 
 [retrieval]
