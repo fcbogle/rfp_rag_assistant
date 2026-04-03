@@ -7,6 +7,9 @@ License: Proprietary
 Requires-Python: <3.12,>=3.11
 Description-Content-Type: text/markdown
 Requires-Dist: azure-storage-blob<13,>=12.25
+Requires-Dist: openai<2,>=1.75
+Requires-Dist: openpyxl<4,>=3.1
+Requires-Dist: pypdf<7,>=6.9
 Provides-Extra: dev
 Requires-Dist: pytest>=8.0; extra == "dev"
 
@@ -61,10 +64,15 @@ Runtime settings are loaded in this order:
 
 Start from `.env.example` and adjust local values in `.env`.
 
-The config shape now mirrors the reusable service patterns from `IFULLMDEV`:
+The config shape is organised around:
 
 - OpenAI chat settings
 - Azure OpenAI deployment settings
 - Chroma vector store settings
 - retrieval defaults
 - ingestion defaults
+
+For token sizing, prefer the RFP-native env vars:
+
+- `RFP_RAG_CHUNK_SIZE_TOKENS`
+- `RFP_RAG_OVERLAP_TOKENS`
