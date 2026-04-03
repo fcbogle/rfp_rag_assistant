@@ -44,6 +44,7 @@ def test_itt_combined_qa_chunker_keeps_question_metadata_on_single_chunk() -> No
     assert chunks[0].metadata.chunk_type == "qa_pair"
     assert chunks[0].metadata.extra["question_id"] == "ITT01"
     assert chunks[0].metadata.extra["question_title"] == "Clinical Governance"
+    assert "Question metadata: ITT01 | Clinical Governance" in chunks[0].text
     assert "Question: Please describe your clinical governance arrangements." in chunks[0].text
     assert "Answer: Blatchford maintains a robust clinical governance framework" in chunks[0].text
 
@@ -65,5 +66,6 @@ def test_itt_combined_qa_chunker_splits_long_answer_and_preserves_traceability()
     assert all(chunk.metadata.extra["chunk_total"] == len(chunks) for chunk in chunks)
     assert [chunk.metadata.extra["chunk_index"] for chunk in chunks] == list(range(1, len(chunks) + 1))
     assert all(chunk.structured_content["question_id"] == "ITT01" for chunk in chunks)
+    assert all("Question metadata: ITT01 | Clinical Governance" in chunk.text for chunk in chunks)
     assert all("Question: Please describe your clinical governance arrangements." in chunk.text for chunk in chunks)
     assert all(chunk.metadata.source_reference is not None for chunk in chunks)

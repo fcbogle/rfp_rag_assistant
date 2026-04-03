@@ -36,7 +36,12 @@ class ITTCombinedQAChunker:
         ).split(answer_text)
         chunk_total = len(answer_segments)
         chunk_texts = [
-            self._compose_chunk_text(question_text=question_text, answer_text=answer_segment)
+            self._compose_chunk_text(
+                question_id=question_id,
+                question_title=question_title,
+                question_text=question_text,
+                answer_text=answer_segment,
+            )
             for answer_segment in answer_segments
         ]
 
@@ -79,8 +84,17 @@ class ITTCombinedQAChunker:
             for index, (chunk_text, answer_segment) in enumerate(zip(chunk_texts, answer_segments), start=1)
         ]
 
-    def _compose_chunk_text(self, *, question_text: str, answer_text: str) -> str:
+    def _compose_chunk_text(
+        self,
+        *,
+        question_id: str,
+        question_title: str,
+        question_text: str,
+        answer_text: str,
+    ) -> str:
         parts = []
+        if question_id or question_title:
+            parts.append("Question metadata: " + " | ".join(part for part in (question_id, question_title) if part))
         if question_text:
             parts.append(f"Question: {question_text}")
         if answer_text:

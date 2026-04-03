@@ -193,6 +193,87 @@ Recommended treatment:
 - retain for audit/reference
 - do not include in the current ingestion and chunking pipeline
 
+### Extracted Embedded File Inventory
+
+The extracted embedded files currently identified are:
+
+#### `background_requirements`
+
+- `Background_info_-_SWS_v4/Microsoft_Excel_Worksheet.xlsx`
+- `Background_information_-_Wheelchair_and_Specialist_Seating_Service/Microsoft_Excel_Worksheet.xlsx`
+- `Wheelchair_and_Specialist_Seating_Service_Specification/Microsoft_Excel_Worksheet.xlsx`
+- `Wheelchair_and_Specialist_Seating_Service_Specification/Microsoft_Word_Document.docx`
+- `Wheelchair_and_Specialist_Seating_Service_Specification/Microsoft_Word_Document1.docx`
+- `Wheelchair_and_Specialist_Seating_Service_Specification/Microsoft_Word_Document2.docx`
+- `Wheelchair_and_Specialist_Seating_Service_Specification/Microsoft_Word_Document3.docx`
+- `Wheelchair_and_Specialist_Seating_Service_Specification/Microsoft_Word_Document4.docx`
+- `Wheelchair_and_Specialist_Seating_Service_Specification/Microsoft_Word_Document5.docx`
+- `Wheelchair_and_Specialist_Seating_Service_Specification/Microsoft_Word_Document6.docx`
+- `Wheelchair_and_Specialist_Seating_Service_Specification/Microsoft_Word_Document7.docx`
+- `Wheelchair_and_Specialist_Seating_Service_Specification/Microsoft_Word_Document8.docx`
+- `Wheelchair_and_Specialist_Seating_Service_Specification/Microsoft_Word_Document9.docx`
+
+#### `response_supporting_material`
+
+- `2.3.4_Appendix_Blatchford_Org_Chart/oleObject1.bin`
+  - unsupported for current ingestion
+
+### Embedded File Chunking Strategy
+
+The embedded files should be treated as normal source documents with additional provenance, not as a separate document-processing architecture.
+
+Recommended approach:
+
+- classify each extracted embedded `.docx` or `.xlsx` into one of the existing document classifications where possible
+- reuse the existing parser/chunker path for that classification
+- carry embedded-source provenance as metadata rather than creating a special embedded-document chunker
+
+#### Why Reuse Existing Chunkers
+
+- the extracted embedded files are standard Word and Excel formats
+- the project already has parser/chunker paths for Word and Excel by document type
+- embedded status is a provenance issue, not a chunking-method issue
+
+#### Routing Rule
+
+For extracted embedded files:
+
+- embedded `.docx`
+  - route through the appropriate Word parser/chunker
+- embedded `.xlsx`
+  - route through the appropriate Excel parser/chunker
+- embedded `.bin`
+  - exclude from current ingestion
+
+#### Expected Default Routing For Current Embedded Files
+
+Because all currently supported extracted files sit under `background_requirements`, the default working assumption should be:
+
+- embedded Word files
+  - route through `BackgroundRequirementsParser`
+  - route through `BackgroundRequirementsChunker`
+- embedded Excel files
+  - route through the row/sheet parsing pattern already used for Excel reference material
+  - if they are requirement/supporting style spreadsheets, route through the existing Excel parser/chunker path rather than inventing a new chunking model
+
+#### Required Embedded Metadata
+
+Chunks produced from extracted embedded files should include additional provenance such as:
+
+- `embedded_source_type = embedded_attachment`
+- `embedded_from_file`
+- `embedded_from_classification`
+- `embedded_relative_path`
+
+This keeps the extracted files fully traceable back to the parent source document while still allowing them to be indexed and retrieved like first-class content.
+
+#### Current Status
+
+- extracted embedded files have been inventoried
+- supported extracted files are `.docx` and `.xlsx`
+- the reuse strategy is defined
+- a dedicated embedded-file ingestion pass has not yet been run as a separate batch
+
 ## Immediate Design Implications
 
 ### Retrieval Priority
@@ -565,6 +646,93 @@ The current HTML path is usable for curated references but still intentionally c
 - clean policy-style pages currently parse better than noisier association/news pages
 
 This is sufficient for a reviewed allowlist of URLs, but not yet a general-purpose web crawler.
+
+## Appendix: Reviewed URL Inventory
+
+The following inventory reflects the current reviewed external-reference set after applying the current policy:
+
+- include URLs extracted from `.docx` and `.xlsx`
+- exclude URLs derived from `.pdf`
+- remove Office/schema noise
+- classify remaining links as `ingest`, `review`, or `ignore`
+
+### `background_requirements`
+
+#### `ingest`
+
+- `https://assets.publishing.service.gov.uk/government/uploads/system/uploads/attachment_data/file/1148143/Guidance-on-adopting-and-applying-PPN-06_21-_-Selection-Criteria-April-23.pdf`
+- `https://assets.publishing.service.gov.uk/government/uploads/system/uploads/attachment_data/file/991625/PPN_0621_Technical_standard_for_the_Completion_of_Carbon_Reduction_Plans__2_.pdf`
+- `https://digital.nhs.uk/data-and-information/data-collections-and-data-sets/data-sets/emergency-care-data-set-ecds/ecds-latest-update`
+- `https://digital.nhs.uk/data-and-information/data-tools-and-services/data-services/patient-reported-outcome-measures-proms`
+- `https://digital.nhs.uk/data-and-information/information-standards/information-standards-and-data-collections-including-extractions/publications-and-notifications/standards-and-collections/dapb4022-personalised-care-and-support-plan`
+- `https://digital.nhs.uk/isce/publication/nhs-standard-contract-approved-collections`
+- `https://www.england.nhs.uk/about/equality/equality-hub/`
+- `https://www.england.nhs.uk/about/equality/equality-hub/core20plus5/`
+- `https://www.england.nhs.uk/nhs-standard-contract/`
+- `https://www.england.nhs.uk/nhs-standard-contract/25-26/`
+- `https://www.england.nhs.uk/long-read/carbon-reduction-plan-requirements-for-the-procurement-of-nhs-goods-services-and-works/`
+- `https://www.england.nhs.uk/wp-content/uploads/2017/01/National-Wheelchair-Data-Collection-Guidance-2020-update-Final.pdf`
+- `https://www.gov.uk/government/collections/english-indices-of-deprivation`
+- `https://www.gov.uk/government/publications/ppn-0324-standard-selection-questionnaire-sq`
+- `https://resmag.org.uk/wp-content/uploads/2020/06/MDR-RESMaG-guidance_v1.0-June2020.pdf`
+- `https://www.hfma.org.uk/news-and-policy/policy-and-research-projects/addressing-health-inequalities`
+- `https://www.legislation.gov.uk/ukpga/2014/6/contents/enacted`
+- `https://www.nice.org.uk/guidance/ng197`
+- `https://www.nice.org.uk/guidance/ng27`
+- `https://www.ukas.com/accreditation/standards/iqips/`
+
+#### `review`
+
+- internal SharePoint link from `Annex 2 - ITT Question Set and Weightings.xlsx`
+- `https://www.e-lfh.org.uk/programmes/children-and-young-peoples-asthma/`
+- `https://ec.europa.eu/growth/smes/business-friendly-environment/sme-definition_en`
+- `https://ghgprotocol.org/corporate-standard`
+- `https://ghgprotocol.org/standards/scope-3-standard`
+- `https://www.personalisedcareinstitute.org.uk/`
+
+### `combined_qa`
+
+#### `ingest`
+
+- `http://www.england.nhs.uk/personalisedcare/evidence-and-case-studies/`
+- `https://www.pmguk.co.uk/journals/one-child-one-chair`
+- `https://www.wheelchairmanagers.org.uk/downloads/NWMF-Right-to-Travel-Leaflet-2020.pdf`
+
+#### `review`
+
+- `https://www.blatchfordmobility.com/en-gb/nhs-clinics/derbyshire-wheelchair-nhs-clinic/`
+- internal SharePoint supporting appendix link
+- `https://eforms.softoptions.co.uk/blatchfordsr`
+
+### `response_supporting_material`
+
+#### `ingest`
+
+- none after removing PDF-derived URLs
+
+#### `review`
+
+- internal SharePoint link from `2.6.1_Appendix_Mobilisation_Plan.xlsx`
+- `https://en.wikipedia.org/wiki/National_Health_Service_(England)`
+
+### `tender_details`
+
+#### `ingest`
+
+- `https://assets.publishing.service.gov.uk/government/uploads/system/uploads/attachment_data/file/779660/20190220-Supplier_Code_of_Conduct.pdf`
+- `https://www.england.nhs.uk/estates/health-building-notes/`
+- `https://www.england.nhs.uk/estates/health-technical-memoranda/`
+- `http://eur-lex.europa.eu/legal-content/EN/TXT/PDF/?uri=CELEX:32016R0679&from=EN`
+- `http://www.gov.uk/government/collections/nhs-procurement`
+- `https://www.gov.uk/government/collections/sustainable-procurement-the-government-buying-standards-gbs`
+- `https://www.gov.uk/government/publications/cyber-essentials-scheme-overview`
+- `https://www.gov.uk/government/publications/the-nhs-constitution-for-england`
+- `http://www.sbs.nhs.uk/`
+
+#### `review`
+
+- `http://ec.europa.eu/enterprise/policies/sme/facts-figures-analysis/sme-definition/`
+- `https://www.modernslaveryhelpline.org/report`
 
 ## Recommended Next Steps
 
