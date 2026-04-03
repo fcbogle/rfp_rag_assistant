@@ -2,14 +2,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from rfp_rag_assistant.loaders.base import LoadedDocument
-from rfp_rag_assistant.services.blob_service import BlobService
+
+if TYPE_CHECKING:
+    from rfp_rag_assistant.services.blob_service import BlobService
 
 
 @dataclass(slots=True)
 class BlobDocumentLoader:
-    blob_service: BlobService
+    blob_service: "BlobService"
     container_name: str
     prefix: str = ""
     supported_extensions: tuple[str, ...] = (".docx", ".xlsx")

@@ -5,6 +5,18 @@ import json
 from pathlib import Path
 
 from rfp_rag_assistant.app.main import build_application
+from rfp_rag_assistant.app.pipeline import IngestionPipeline
+from rfp_rag_assistant.chunkers import (
+    BackgroundRequirementsChunker,
+    ResponseSupportingMaterialChunker,
+    TenderDetailsChunker,
+)
+from rfp_rag_assistant.loaders import LocalDocumentLoader
+from rfp_rag_assistant.parsers import (
+    BackgroundRequirementsParser,
+    ResponseSupportingMaterialParser,
+    TenderDetailsParser,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -18,6 +30,21 @@ def build_parser() -> argparse.ArgumentParser:
         "--source-file",
         type=Path,
         help="Optional source file path to validate extension support.",
+    )
+    parser.add_argument(
+        "--preview-background-file",
+        type=Path,
+        help="Parse and chunk a background_requirements Word document, then print a JSON summary.",
+    )
+    parser.add_argument(
+        "--preview-supporting-material-file",
+        type=Path,
+        help="Parse and chunk a response_supporting_material Excel workbook, then print a JSON summary.",
+    )
+    parser.add_argument(
+        "--preview-tender-details-file",
+        type=Path,
+        help="Parse and chunk a tender_details .docx or .xlsx file, then print a JSON summary.",
     )
     return parser
 
@@ -92,6 +119,161 @@ def main() -> None:
         if suffix not in settings.supported_extensions:
             raise SystemExit(f"Unsupported source file type: {suffix}")
         print(f"Accepted source file: {args.source_file}")
+        return
+
+    if args.preview_background_file is not None:
+        source_file = args.preview_background_file
+        suffix = source_file.suffix.lower()
+        if suffix != ".docx":
+            raise SystemExit("Background requirements preview currently supports .docx only.")
+
+        pipeline = IngestionPipeline(
+            loader=LocalDocumentLoader(),
+            parser=BackgroundRequirementsParser(),
+            chunker=BackgroundRequirementsChunker(
+                chunk_size_tokens=settings.ingestion.chunk_size_tokens,
+                overlap_tokens=settings.ingestion.overlap_tokens,
+            ),
+        )
+        parsed, chunks = pipeline.ingest(source_file)
+        print(
+            json.dumps(
+                {
+                    "source_file": str(parsed.source_file),
+                    "document_type": parsed.document_type,
+                    "section_count": len(parsed.sections),
+                    "chunk_count": len(chunks),
+                    "sections": [
+                        {
+                            "section_id": section.section_id,
+                            "title": section.title,
+                            "heading_path": list(section.heading_path),
+                            "text_preview": section.text[:160],
+                        }
+                        for section in parsed.sections[:10]
+                    ],
+                    "chunks": [
+                        {
+                            "chunk_id": chunk.chunk_id,
+                            "chunk_type": chunk.metadata.chunk_type,
+                            "heading_path": list(chunk.metadata.heading_path),
+                            "chunk_index": chunk.metadata.extra.get("chunk_index"),
+                            "chunk_total": chunk.metadata.extra.get("chunk_total"),
+                            "text_preview": chunk.text[:200],
+                        }
+                        for chunk in chunks[:10]
+                    ],
+                },
+                indent=2,
+            )
+        )
+        return
+
+    if args.preview_supporting_material_file is not None:
+        source_file = args.preview_supporting_material_file
+        suffix = source_file.suffix.lower()
+        if suffix not in {".xlsx", ".pdf"}:
+            raise SystemExit("Supporting material preview currently supports .xlsx and .pdf only.")
+
+        pipeline = IngestionPipeline(
+            loader=LocalDocumentLoader(),
+            parser=ResponseSupportingMaterialParser(),
+            chunker=ResponseSupportingMaterialChunker(
+                chunk_size_tokens=settings.ingestion.chunk_size_tokens,
+                overlap_tokens=settings.ingestion.overlap_tokens,
+            ),
+        )
+        parsed, chunks = pipeline.ingest(source_file)
+        print(
+            json.dumps(
+                {
+                    "source_file": str(parsed.source_file),
+                    "document_type": parsed.document_type,
+                    "section_count": len(parsed.sections),
+                    "chunk_count": len(chunks),
+                    "sections": [
+                        {
+                            "section_id": section.section_id,
+                            "title": section.title,
+                            "kind": section.kind,
+                            "heading_path": list(section.heading_path),
+                            "sheet_name": section.structured_data.get("sheet_name"),
+                            "row_index": section.structured_data.get("row_index"),
+                            "text_preview": section.text[:160],
+                        }
+                        for section in parsed.sections[:10]
+                    ],
+                    "chunks": [
+                        {
+                            "chunk_id": chunk.chunk_id,
+                            "chunk_type": chunk.metadata.chunk_type,
+                            "sheet_name": chunk.metadata.sheet_name,
+                            "heading_path": list(chunk.metadata.heading_path),
+                            "row_index": chunk.metadata.extra.get("row_index"),
+                            "chunk_index": chunk.metadata.extra.get("chunk_index"),
+                            "chunk_total": chunk.metadata.extra.get("chunk_total"),
+                            "text_preview": chunk.text[:200],
+                        }
+                        for chunk in chunks[:10]
+                    ],
+                },
+                indent=2,
+            )
+        )
+        return
+
+    if args.preview_tender_details_file is not None:
+        source_file = args.preview_tender_details_file
+        suffix = source_file.suffix.lower()
+        if suffix not in {".docx", ".xlsx", ".pdf"}:
+            raise SystemExit("Tender details preview currently supports .docx, .xlsx and .pdf only.")
+
+        pipeline = IngestionPipeline(
+            loader=LocalDocumentLoader(),
+            parser=TenderDetailsParser(),
+            chunker=TenderDetailsChunker(
+                chunk_size_tokens=settings.ingestion.chunk_size_tokens,
+                overlap_tokens=settings.ingestion.overlap_tokens,
+            ),
+        )
+        parsed, chunks = pipeline.ingest(source_file)
+        print(
+            json.dumps(
+                {
+                    "source_file": str(parsed.source_file),
+                    "document_type": parsed.document_type,
+                    "subtype": parsed.metadata.get("subtype"),
+                    "section_count": len(parsed.sections),
+                    "chunk_count": len(chunks),
+                    "sections": [
+                        {
+                            "section_id": section.section_id,
+                            "title": section.title,
+                            "kind": section.kind,
+                            "heading_path": list(section.heading_path),
+                            "sheet_name": section.structured_data.get("sheet_name"),
+                            "row_index": section.structured_data.get("row_index"),
+                            "text_preview": section.text[:160],
+                        }
+                        for section in parsed.sections[:10]
+                    ],
+                    "chunks": [
+                        {
+                            "chunk_id": chunk.chunk_id,
+                            "chunk_type": chunk.metadata.chunk_type,
+                            "sheet_name": chunk.metadata.sheet_name,
+                            "heading_path": list(chunk.metadata.heading_path),
+                            "row_index": chunk.metadata.extra.get("row_index"),
+                            "chunk_index": chunk.metadata.extra.get("chunk_index"),
+                            "chunk_total": chunk.metadata.extra.get("chunk_total"),
+                            "text_preview": chunk.text[:200],
+                        }
+                        for chunk in chunks[:10]
+                    ],
+                },
+                indent=2,
+            )
+        )
         return
 
     print("rfp_rag_assistant scaffold is installed. Use --print-config to inspect defaults.")

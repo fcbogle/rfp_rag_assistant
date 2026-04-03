@@ -117,14 +117,13 @@ def test_blob_service_supports_basic_client_operations() -> None:
     ]
 
 
-def test_blob_service_upload_file_to_blob_uses_local_annex_file() -> None:
+def test_blob_service_upload_file_to_blob_uses_local_file(tmp_path: Path) -> None:
     fake_container = FakeContainerClient()
     fake_client = FakeBlobServiceClient(container=fake_container)
     settings = AppSettings(azure_storage=AzureStorageSettings(account="acct", key="secret"))
     service = BlobService(settings=settings, client_factory=lambda _: fake_client)
-    annex_path = Path(
-        "/Users/frankbogle/Documents/RFP/Annex A - East Sussex Specialist Static Postural Seating for Adults.docx"
-    )
+    annex_path = tmp_path / "Annex A - East Sussex Specialist Static Postural Seating for Adults.docx"
+    annex_path.write_bytes(b"example-annex-content")
 
     blob_name = service.upload_file_to_blob(
         "rfp-rag-assistant",

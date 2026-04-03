@@ -2,5 +2,7 @@
 
 from .base import LoadedDocument, Loader
 from .blob_document_loader import BlobDocumentLoader
+from .external_reference_loader import ExternalReferenceLoader
+from .local_document_loader import LocalDocumentLoader
 
-__all__ = ["BlobDocumentLoader", "LoadedDocument", "Loader"]
+__all__ = ["BlobDocumentLoader", "ExternalReferenceLoader", "LoadedDocument", "Loader", "LocalDocumentLoader"]
