@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
+import logging
 from pathlib import Path
 import re
 from zipfile import ZipFile
@@ -15,6 +16,7 @@ WORD_NS = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
 @dataclass(slots=True)
 class NarrativeCombinedQAParser:
     document_type: str = "combined_qa"
+    logger: logging.Logger = field(default_factory=lambda: logging.getLogger(__name__))
 
     def parse_file(self, source_file: Path) -> ParsedDocument:
         paragraphs = self._extract_paragraphs(source_file)
@@ -29,6 +31,13 @@ class NarrativeCombinedQAParser:
 
         title = " - ".join(part for part in (question_id, question_title) if part).strip() or source_file.stem
         answer_paragraph_count = len([part for part in answer_text.split("\n\n") if part.strip()])
+        self.logger.info(
+            "Parsed narrative combined QA file=%s question_id=%s title=%s answer_paragraphs=%s",
+            source_file.name,
+            question_id or "<missing>",
+            question_title or "<missing>",
+            answer_paragraph_count,
+        )
 
         return ParsedDocument(
             source_file=source_file,

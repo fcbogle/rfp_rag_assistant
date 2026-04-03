@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+import logging
 
 from rfp_rag_assistant.models import Chunk, ChunkMetadata, ParsedDocument, ParsedSection, SourceReference
 from rfp_rag_assistant.chunkers.splitting import TextSplitter
@@ -11,6 +12,7 @@ class ITTCombinedQAChunker:
     chunk_size_tokens: int = 300
     overlap_tokens: int = 100
     chunk_type: str = "qa_pair"
+    logger: logging.Logger = field(default_factory=lambda: logging.getLogger(__name__))
 
     def chunk(self, document: ParsedDocument) -> list[Chunk]:
         chunks: list[Chunk] = []
@@ -19,6 +21,13 @@ class ITTCombinedQAChunker:
             if section.kind != "qa_pair":
                 continue
             chunks.extend(self._chunk_section(document, section))
+
+        self.logger.info(
+            "Chunked combined QA file=%s sections=%s chunks=%s",
+            document.source_file.name,
+            len([section for section in document.sections if section.kind == "qa_pair"]),
+            len(chunks),
+        )
 
         return chunks
 

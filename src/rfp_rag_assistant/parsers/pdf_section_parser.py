@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
+import logging
 from pathlib import Path
 import re
 
@@ -17,6 +18,7 @@ from rfp_rag_assistant.parsers.title_normalization import normalize_section_titl
 class PDFSectionParser:
     document_type: str
     subtype: str
+    logger: logging.Logger = field(default_factory=lambda: logging.getLogger(__name__))
 
     def parse(self, document: LoadedDocument) -> ParsedDocument:
         if isinstance(document.payload, (str, Path)):
@@ -27,6 +29,14 @@ class PDFSectionParser:
         page_lines = self._extract_page_lines(source_file)
         content_lines = self._filter_repeated_headers_and_footers(page_lines)
         sections = self._cleanup_sections(self._build_sections(source_file, content_lines))
+        self.logger.info(
+            "Parsed PDF file=%s subtype=%s pages=%s content_lines=%s sections=%s",
+            source_file.name,
+            self.subtype,
+            len(page_lines),
+            len(content_lines),
+            len(sections),
+        )
 
         return ParsedDocument(
             source_file=source_file,

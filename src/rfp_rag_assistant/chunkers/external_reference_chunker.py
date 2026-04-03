@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+import logging
 
 from rfp_rag_assistant.chunkers.splitting import TextSplitter
 from rfp_rag_assistant.models import Chunk, ChunkMetadata, ParsedDocument, ParsedSection, SourceReference
@@ -11,11 +12,18 @@ class ExternalReferenceChunker:
     chunk_size_tokens: int = 300
     overlap_tokens: int = 100
     default_chunk_type: str = "reference_content"
+    logger: logging.Logger = field(default_factory=lambda: logging.getLogger(__name__))
 
     def chunk(self, document: ParsedDocument) -> list[Chunk]:
         chunks: list[Chunk] = []
         for section in document.sections:
             chunks.extend(self._chunk_section(document, section))
+        self.logger.info(
+            "Chunked external reference file=%s sections=%s chunks=%s",
+            document.source_file.name,
+            len(document.sections),
+            len(chunks),
+        )
         return chunks
 
     def _chunk_section(self, document: ParsedDocument, section: ParsedSection) -> list[Chunk]:

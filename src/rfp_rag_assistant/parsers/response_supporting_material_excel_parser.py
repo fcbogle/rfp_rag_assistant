@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
+import logging
 from pathlib import Path
 import re
 from typing import Any
@@ -17,6 +18,7 @@ from rfp_rag_assistant.parsers.title_normalization import normalize_section_titl
 class ResponseSupportingMaterialExcelParser:
     document_type: str = "response_supporting_material"
     header_scan_rows: int = 20
+    logger: logging.Logger = field(default_factory=lambda: logging.getLogger(__name__))
 
     def parse(self, document: LoadedDocument) -> ParsedDocument:
         if isinstance(document.payload, (str, Path)):
@@ -28,16 +30,31 @@ class ResponseSupportingMaterialExcelParser:
 
         sections: list[ParsedSection] = []
         sheet_summaries: list[dict[str, Any]] = []
+        row_section_count = 0
+        row_group_section_count = 0
+        summary_section_count = 0
 
         for worksheet in workbook.worksheets:
             sheet_sections = self._parse_sheet(source_file, worksheet)
             sections.extend(sheet_sections)
+            row_section_count += sum(1 for section in sheet_sections if section.kind == "spreadsheet_row")
+            row_group_section_count += sum(1 for section in sheet_sections if section.kind == "spreadsheet_row_group")
+            summary_section_count += sum(1 for section in sheet_sections if section.kind == "reference_content")
             sheet_summaries.append(
                 {
                     "sheet_name": worksheet.title,
                     "section_count": len(sheet_sections),
                 }
             )
+        self.logger.info(
+            "Parsed response supporting material workbook=%s sheets=%s sections=%s row_sections=%s row_group_sections=%s summary_sections=%s",
+            source_file.name,
+            len(workbook.sheetnames),
+            len(sections),
+            row_section_count,
+            row_group_section_count,
+            summary_section_count,
+        )
 
         return ParsedDocument(
             source_file=source_file,

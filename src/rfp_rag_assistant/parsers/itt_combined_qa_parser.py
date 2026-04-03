@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
+import logging
 from pathlib import Path
 import re
 from zipfile import ZipFile
@@ -15,6 +16,7 @@ WORD_NS = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
 @dataclass(slots=True)
 class ITTCombinedQAParser:
     document_type: str = "combined_qa"
+    logger: logging.Logger = field(default_factory=lambda: logging.getLogger(__name__))
 
     def parse_file(self, source_file: Path) -> ParsedDocument:
         with ZipFile(source_file) as archive:
@@ -66,6 +68,13 @@ class ITTCombinedQAParser:
         if not question_title:
             question_title = self._question_title_from_filename(source_file)
         title = " - ".join(part for part in (question_id, question_title) if part).strip() or source_file.stem
+        self.logger.info(
+            "Parsed ITT combined QA file=%s question_id=%s title=%s answer_chars=%s",
+            source_file.name,
+            question_id or "<missing>",
+            question_title or "<missing>",
+            len(answer_text),
+        )
 
         return ParsedDocument(
             source_file=source_file,

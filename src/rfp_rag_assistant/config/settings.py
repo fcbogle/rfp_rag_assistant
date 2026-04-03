@@ -100,6 +100,7 @@ class ChromaSettings:
     api_key: str = ""
     tenant: str = ""
     database: str = ""
+    namespace: str = "dev"
     collection: str = "rfp_answers"
 
 
@@ -286,6 +287,10 @@ class AppSettings:
                 database=os.getenv(
                     "CHROMA_DATABASE",
                     env_values.get("CHROMA_DATABASE", chroma_config.get("database", "")),
+                ),
+                namespace=os.getenv(
+                    "RFP_RAG_CHROMA_NAMESPACE",
+                    env_values.get("RFP_RAG_CHROMA_NAMESPACE", chroma_config.get("namespace", "dev")),
                 ),
                 collection=os.getenv(
                     "RFP_RAG_VECTOR_COLLECTION",

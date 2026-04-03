@@ -60,7 +60,15 @@ class AzureOpenAIEmbedder:
 
     def embed(self, chunks: list[Chunk]) -> list[list[float]]:
         texts = [chunk.embedding_text for chunk in chunks if chunk.embedding_text.strip()]
-        return self.embed_texts(texts)
+        vectors = self.embed_texts(texts)
+        self.logger.info(
+            "Embedded chunks deployment=%s requested=%s embedded=%s dimension=%s",
+            self.model,
+            len(chunks),
+            len(vectors),
+            self.embedding_dim or 0,
+        )
+        return vectors
 
     def embed_texts(self, texts: Sequence[str]) -> list[list[float]]:
         clean = [text.strip() for text in texts if isinstance(text, str) and text.strip()]
@@ -70,6 +78,11 @@ class AzureOpenAIEmbedder:
         vectors: list[list[float]] = []
         for start in range(0, len(clean), self.batch_size):
             batch = clean[start : start + self.batch_size]
+            self.logger.debug(
+                "Requesting embedding batch deployment=%s batch_size=%s",
+                self.model,
+                len(batch),
+            )
             response = self._client_instance().embeddings.create(model=self.model, input=batch)
             data = getattr(response, "data", None) or []
             if len(data) != len(batch):

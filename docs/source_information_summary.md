@@ -647,6 +647,190 @@ The current HTML path is usable for curated references but still intentionally c
 
 This is sufficient for a reviewed allowlist of URLs, but not yet a general-purpose web crawler.
 
+## Embedder And Indexing Design
+
+The prototype now includes the first concrete embedding and indexing design so that parsed and chunked content can be prepared safely for Chroma without losing metadata.
+
+### Embedder Design
+
+The embedding layer currently uses an Azure OpenAI embedder aligned to the same service direction as `IFULLMDEV`, but simplified for this repository.
+
+Implemented component:
+
+- `AzureOpenAIEmbedder`
+
+Current design characteristics:
+
+- reads Azure OpenAI configuration from:
+  - `AZURE_OPENAI_API_KEY`
+  - `AZURE_OPENAI_ENDPOINT`
+  - `AZURE_OPENAI_API_VERSION`
+  - `AZURE_OPENAI_EMBED_DEPLOYMENT`
+- performs lazy client construction
+- supports:
+  - configuration checks
+  - connection testing
+  - batched embedding requests
+- uses the chunk `embedding_text` rather than raw source text
+- checks for embedding-dimension consistency
+- normalizes vectors by default
+
+#### Embedder Design Rationale
+
+- embedding behavior should be shared across document classifications
+- document-type differences belong in:
+  - parsing
+  - chunking
+  - metadata
+  - collection routing
+- the embedder therefore stays generic and only turns embedding-ready text into vectors
+
+This avoids unnecessary embedder polymorphism by document type.
+
+### Chroma Metadata Schema Design
+
+The project previously identified a risk, seen in `IFULLMDEV`, of valuable metadata being lost between chunk creation and vector indexing.
+
+To prevent that, the prototype now includes a Chroma schema layer that:
+
+- flattens chunk metadata explicitly
+- validates required fields before upsert
+- fails fast if required metadata is missing
+
+Implemented components:
+
+- `flatten_chunk_metadata(...)`
+- `chunk_to_chroma_record(...)`
+- `DOCUMENT_TYPE_SCHEMAS`
+
+#### Common Required Metadata
+
+All chunks currently require:
+
+- `chunk_id`
+- `source_file`
+- `file_type`
+- `document_type`
+- `chunk_type`
+- `section_title`
+
+#### Additional Required Metadata By Classification
+
+`combined_qa`
+
+- `question_id`
+- `question_title`
+- `question_text`
+
+`response_supporting_material`
+
+- common fields above
+- `sheet_name` required for spreadsheet row-based chunks
+
+`background_requirements`
+
+- common fields above
+
+`tender_details`
+
+- common fields above
+- `sheet_name` required for spreadsheet row-based chunks
+
+`external_reference`
+
+- `source_url`
+- `source_domain`
+- `reference_origin`
+
+#### Schema Design Rationale
+
+- Chroma metadata should contain the fields needed for:
+  - filtering
+  - ranking
+  - traceability
+  - UI/source display
+- nested or rich chunk structure can remain in `structured_content`
+- but no critical retrieval/traceability field should exist only in nested content
+
+This is specifically intended to avoid silent metadata loss at the indexing boundary.
+
+### Chroma Collection Strategy
+
+The current indexing design assumes:
+
+- one Chroma database or client for the application
+- multiple collections, one per corpus
+- namespaced collection names for environment isolation
+
+Implemented component:
+
+- `ChromaIndexer`
+
+Current collection design:
+
+- collection per document classification
+- environment namespace prefix such as:
+  - `test_combined_qa`
+  - `test_response_supporting_material`
+  - `test_background_requirements`
+  - `test_tender_details`
+  - `test_external_reference`
+
+If a non-default collection base name is later used, the current naming rule supports forms such as:
+
+- `prod_rfp_history_combined_qa`
+
+#### Collection Design Rationale
+
+- `combined_qa` should not compete in one flat collection with tender-administration content
+- `response_supporting_material` is a premium supporting corpus and should remain separable
+- `external_reference` should remain distinguishable from internal company content
+- namespacing isolates `test`, `dev`, and `prod` without requiring separate indexing code paths
+
+### Indexing Flow
+
+The current intended indexing flow is:
+
+1. parse source file
+2. chunk parsed document
+3. flatten and validate chunk metadata
+4. group chunks by `document_type`
+5. embed chunk `embedding_text`
+6. upsert into the namespaced collection for that corpus
+
+This means metadata validation happens before any Chroma upsert, not after.
+
+### Logging And Observability
+
+The embedding and indexing layer now includes logging for:
+
+- embedding batch activity
+- total embedded chunks
+- embedding dimension
+- successful Chroma upserts by collection
+
+This sits alongside the newer parser/chunker logging so an ingestion run can be traced from:
+
+- file parsing
+- section extraction
+- chunk creation
+- embedding
+- collection upsert
+
+### Current Status
+
+- concrete Azure OpenAI embedder implemented
+- Chroma schema validation implemented
+- Chroma indexer implemented
+- namespaced collection strategy implemented
+- fake-client tests added for indexing without requiring a live Chroma service
+
+What remains after this layer is:
+
+- retrieval across the collections
+- end-to-end indexing against a live Chroma target
+- evaluation of retrieval quality by corpus
+
 ## Appendix: Reviewed URL Inventory
 
 The following inventory reflects the current reviewed external-reference set after applying the current policy:

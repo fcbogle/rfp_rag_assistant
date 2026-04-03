@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from html.parser import HTMLParser
+import logging
 from pathlib import Path
 import re
 from urllib.parse import urlparse
@@ -100,6 +101,7 @@ class _HTMLSectionExtractor(HTMLParser):
 class HTMLReferenceParser:
     document_type: str = "external_reference"
     subtype: str = "html_reference"
+    logger: logging.Logger = field(default_factory=lambda: logging.getLogger(__name__))
 
     def parse(self, document: LoadedDocument) -> ParsedDocument:
         html = str(document.payload)
@@ -115,6 +117,13 @@ class HTMLReferenceParser:
             source_url=source_url,
             source_domain=source_domain,
             buffers=extractor.sections(),
+        )
+        self.logger.info(
+            "Parsed HTML reference url=%s domain=%s sections=%s title=%s",
+            source_url or "<missing>",
+            source_domain or urlparse(source_url).netloc.lower() or "<missing>",
+            len(sections),
+            page_title,
         )
         return ParsedDocument(
             source_file=document.source_file,

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
+import logging
 from pathlib import Path
 import re
 from zipfile import ZipFile
@@ -17,6 +18,7 @@ WORD_NS = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
 @dataclass(slots=True)
 class BackgroundRequirementsParser:
     document_type: str = "background_requirements"
+    logger: logging.Logger = field(default_factory=lambda: logging.getLogger(__name__))
 
     def parse(self, document: LoadedDocument) -> ParsedDocument:
         if isinstance(document.payload, (str, Path)):
@@ -37,6 +39,8 @@ class BackgroundRequirementsParser:
         current_kind = "reference_content"
         current_parts: list[str] = []
         section_counter = 0
+        heading_count = 0
+        table_count = 0
 
         for element in body:
             tag = element.tag.rsplit("}", 1)[-1]
@@ -47,6 +51,7 @@ class BackgroundRequirementsParser:
                     continue
 
                 if self._is_heading(paragraph):
+                    heading_count += 1
                     self._flush_section(
                         sections=sections,
                         source_file=source_file,
@@ -70,6 +75,7 @@ class BackgroundRequirementsParser:
             if tag == "tbl":
                 table_text = self._table_text(element)
                 if table_text:
+                    table_count += 1
                     current_parts.append(table_text)
 
         self._flush_section(
@@ -80,6 +86,13 @@ class BackgroundRequirementsParser:
             current_parts=current_parts,
             heading_stack=heading_stack,
             section_counter=section_counter,
+        )
+        self.logger.info(
+            "Parsed background requirements file=%s sections=%s headings=%s tables=%s",
+            source_file.name,
+            len(sections),
+            heading_count,
+            table_count,
         )
 
         return ParsedDocument(

@@ -27,6 +27,7 @@ src/rfp_rag_assistant/config/settings.py
 src/rfp_rag_assistant/embeddings/__init__.py
 src/rfp_rag_assistant/embeddings/azure_openai_embedder.py
 src/rfp_rag_assistant/embeddings/base.py
+src/rfp_rag_assistant/embeddings/chroma_indexer.py
 src/rfp_rag_assistant/embeddings/chroma_schema.py
 src/rfp_rag_assistant/evaluation/__init__.py
 src/rfp_rag_assistant/evaluation/metrics.py
@@ -64,6 +65,7 @@ tests/test_background_requirements_chunker.py
 tests/test_background_requirements_parser.py
 tests/test_blob_document_loader.py
 tests/test_blob_service.py
+tests/test_chroma_indexer.py
 tests/test_chroma_schema.py
 tests/test_cli_config.py
 tests/test_config_wrapper.py
