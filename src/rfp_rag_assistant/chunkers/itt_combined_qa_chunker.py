@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import logging
 
+from rfp_rag_assistant.chunkers.ids import build_chunk_id
 from rfp_rag_assistant.models import Chunk, ChunkMetadata, ParsedDocument, ParsedSection, SourceReference
 from rfp_rag_assistant.chunkers.splitting import TextSplitter
 
@@ -56,7 +57,7 @@ class ITTCombinedQAChunker:
 
         return [
             Chunk(
-                chunk_id=f"{section.section_id or question_id or 'qa'}-chunk-{index}",
+                chunk_id=build_chunk_id(document.source_file, section.section_id or question_id or "qa", index),
                 text=chunk_text,
                 embedding_text=chunk_text,
                 metadata=ChunkMetadata(

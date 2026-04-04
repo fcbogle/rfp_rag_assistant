@@ -348,10 +348,63 @@ Example:
 
 This is important because the blob name itself now carries the classification signal needed by the ingestion pipeline.
 
+#### Local-To-Blob Upload Command
+
+The prototype now includes a CLI upload path that mirrors the classified local source tree into Blob storage.
+
+Current behavior:
+
+- upload all files under a chosen local root
+- preserve relative paths in the resulting blob names
+- target the configured `rfp-rag-assistant` container
+- optionally overwrite existing blobs
+
+This provides a clean operational bridge from:
+
+- local document curation
+- to Blob-backed ingestion and indexing
+
 ### Embedded Materials
 
 - embedded `.docx` and `.xlsx` should be treated as separate source documents after review and classification
 - embedded documents should not be merged inline with the parent document during chunking
+
+### Master RFP Metadata Implications
+
+The prototype now also supports master metadata describing the RFP or response set being ingested.
+
+Examples of this kind of metadata include:
+
+- `issuing_authority`
+- `customer`
+- `rfp_id`
+- `rfp_title`
+- `region`
+- `product_or_service_area`
+
+For the current example set, the confirmed authority is:
+
+- `Sussex Community NHS Foundation Trust`
+
+#### Why This Metadata Matters
+
+- it provides a consistent identity for the RFP across all source files
+- it supports future filtering and retrieval scoping
+- it improves UI/source traceability
+- it avoids relying on file-level inference for authority or customer identity
+
+#### Design Decision
+
+Master RFP metadata should enter the pipeline at ingestion time, not be invented later during retrieval.
+
+Current propagation model:
+
+1. ingestion service receives `MasterRFPMetadata`
+2. parser and chunker run as normal
+3. ingestion service applies the master metadata to every chunk
+4. Chroma schema flattens those fields for indexing and retrieval
+
+This means the chunker does not originate the authority metadata, but every final chunk still carries it.
 
 ## Parser And Chunker Implementation Status
 
@@ -442,6 +495,10 @@ Current responsibility:
 5. parse and chunk the document
 6. send the resulting chunks to the Chroma indexer
 
+The ingestion service also now applies optional master-RFP metadata to every chunk before indexing.
+
+The first live Blob-backed ingestion run has now been completed successfully against Chroma.
+
 #### Why An Ingestion Service Was Needed
 
 - `AppContainer` should assemble dependencies, not execute the ingestion workflow itself
@@ -449,6 +506,39 @@ Current responsibility:
 - the orchestration layer is where document loading, routing, and indexing belong
 
 This keeps the architecture aligned with the separation-of-concerns principle defined for the project.
+
+### First Successful Blob-Backed Ingestion Run
+
+The first successful live indexing run demonstrated that the end-to-end path is now operational:
+
+- Blob storage as source
+- classification inferred from blob prefix
+- parser selection
+- chunk creation
+- Azure embedding
+- Chroma upsert into namespaced collections
+
+First successful run summary:
+
+- `document_count = 5`
+- `chunk_count = 204`
+- collection populated:
+  - `test_rfp_background_requirements`
+
+Files processed in that first run:
+
+- `background_requirements/Annex 1 - Basic Selection Criteria (BSC) Bidder Guidance.docx`
+- `background_requirements/Annex 2 - ITT Question Set and Weightings.xlsx`
+- `background_requirements/Annex 3 - NHS draft contract v3.docx`
+- `background_requirements/Annex 3 - NHS draft contract.docx`
+- `background_requirements/Annex 4 - Confidentiality Agreement to receive workforce information.docx`
+
+Observed result:
+
+- the first five blobs returned happened to all belong to `background_requirements`
+- therefore only `test_rfp_background_requirements` was populated in that run
+
+This is an expected consequence of current listing order and confirms that ingestion filtering by classification would be a useful next refinement.
 
 ### Blob Bytes To Chunks Flow
 
@@ -463,6 +553,26 @@ Current flow:
 5. the Chroma indexer validates metadata, embeds, and upserts
 
 This staging step exists because the current Word, Excel, and PDF parsers operate from file paths rather than directly from in-memory byte streams.
+
+### Master Metadata Flow
+
+The current metadata propagation path is:
+
+1. `MasterRFPMetadata` is attached to the ingestion run
+2. chunkers produce document-specific chunks as usual
+3. the ingestion service enriches each chunk with:
+   - `issuing_authority`
+   - `customer`
+   - `rfp_id`
+   - `rfp_title`
+   - optional region/service-area fields
+4. the Chroma schema flattens those values into indexable metadata
+
+This keeps:
+
+- document-type-specific chunking logic focused
+- authority/customer identity consistent across all chunks
+- Chroma metadata filter-ready
 
 ## Design Rationale By Classification And File Shape
 
@@ -528,6 +638,15 @@ This design supports future answer reuse and retrieval because the chunk always 
 - preserve heading hierarchy
 - convert tables into text rows rather than dropping them
 
+The parser now also dispatches by file type within the `background_requirements` classification:
+
+- `.docx`
+  - Word section parsing
+- `.xlsx`
+  - Excel row/sheet parsing
+- `.pdf`
+  - PDF section parsing
+
 This design was chosen because the real files show meaningful section structure, but not always with perfectly consistent styling.
 
 #### Parser Example
@@ -555,6 +674,35 @@ This preserves heading hierarchy and table context that would be lost in a flat-
 - only split within a section when token limits require it
 
 This fits buyer-issued requirement/context documents, where the section is the natural retrieval unit.
+
+### Chunk ID Design
+
+The first live Chroma runs exposed two operational constraints:
+
+1. chunk IDs must be unique within a collection
+2. chunk IDs must remain below the Chroma Cloud ID-size quota
+
+The initial document-scoped readable IDs solved uniqueness but exceeded the cloud quota limit for long filenames and section identifiers.
+
+Current design:
+
+- chunk IDs are deterministic
+- chunk IDs are document-scoped
+- chunk IDs use:
+  - a short slug derived from the source filename stem
+  - a compact hash based on source file, section ID, and chunk index
+  - the chunk index itself
+
+Example shape:
+
+- `background-info-sws-v4-1a2b3c4d5e6f-1`
+
+Rationale:
+
+- unique across files within the same Chroma collection
+- stable across repeated ingestion of the same source
+- short enough to remain below Chroma Cloud quota limits
+- no dependence on non-deterministic UUID generation
 
 ### `response_supporting_material`
 
@@ -873,6 +1021,13 @@ All chunks currently require:
 - `chunk_type`
 - `section_title`
 
+Additional common optional fields now supported for filtering and traceability include:
+
+- `issuing_authority`
+- `customer`
+- `rfp_id`
+- `rfp_title`
+
 #### Additional Required Metadata By Classification
 
 `combined_qa`
@@ -1023,6 +1178,9 @@ Rationale:
 - Chroma indexer implemented
 - namespaced collection strategy implemented
 - fake-client tests added for indexing without requiring a live Chroma service
+- master RFP metadata propagation implemented through ingestion and Chroma flattening
+- live Blob-backed upload and indexing path validated
+- first successful Chroma population completed for `test_rfp_background_requirements`
 
 What remains after this layer is:
 
@@ -1122,11 +1280,13 @@ The following inventory reflects the current reviewed external-reference set aft
 1. Review the extracted embedded `.docx` and `.xlsx` files and classify them into the same document taxonomy.
 2. Produce and maintain a reviewed URL inventory using only Word/Excel-derived external references.
 3. Prioritise `customer_cited` external references for the first external corpus ingestion pass.
-4. Wire the parsed and chunked outputs into the next layer:
-   - embedding preparation
-   - vector indexing
-   - retrieval preview
-5. Add chunking-run reporting so each ingestion run explains:
+4. Add ingestion filtering by document classification so targeted runs can populate:
+   - `combined_qa`
+   - `response_supporting_material`
+   - `background_requirements`
+   - `tender_details`
+5. Build retrieval over the populated `test_rfp_*` Chroma collections.
+6. Add chunking-run reporting so each ingestion run explains:
    - sections found
    - chunks created
    - split behavior

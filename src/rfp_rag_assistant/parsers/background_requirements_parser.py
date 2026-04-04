@@ -10,6 +10,10 @@ import xml.etree.ElementTree as ET
 
 from rfp_rag_assistant.loaders import LoadedDocument
 from rfp_rag_assistant.models import ParsedDocument, ParsedSection
+from rfp_rag_assistant.parsers.pdf_section_parser import PDFSectionParser
+from rfp_rag_assistant.parsers.response_supporting_material_excel_parser import (
+    ResponseSupportingMaterialExcelParser,
+)
 from rfp_rag_assistant.parsers.title_normalization import normalize_section_title
 
 WORD_NS = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
@@ -26,6 +30,22 @@ class BackgroundRequirementsParser:
         return self.parse_file(document.source_file)
 
     def parse_file(self, source_file: Path) -> ParsedDocument:
+        suffix = source_file.suffix.lower()
+        if suffix == ".xlsx":
+            parsed = ResponseSupportingMaterialExcelParser(document_type=self.document_type).parse_file(source_file)
+            parsed.metadata["subtype"] = "excel_background_requirements"
+            return parsed
+        if suffix == ".pdf":
+            return PDFSectionParser(
+                document_type=self.document_type,
+                subtype="pdf_background_requirements",
+            ).parse_file(source_file)
+        if suffix != ".docx":
+            raise ValueError(f"Background requirements parser does not support file type: {suffix}")
+
+        return self._parse_word_file(source_file)
+
+    def _parse_word_file(self, source_file: Path) -> ParsedDocument:
         with ZipFile(source_file) as archive:
             root = ET.fromstring(archive.read("word/document.xml"))
 

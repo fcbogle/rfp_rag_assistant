@@ -35,6 +35,7 @@ def test_background_requirements_chunker_keeps_section_context() -> None:
     assert chunks[0].metadata.chunk_type == "reference_content"
     assert chunks[0].metadata.heading_path == ("Background", "Service Overview")
     assert chunks[0].metadata.extra["section_title"] == "Service Overview"
+    assert chunks[0].chunk_id.startswith("background-info-sws-v4-")
     assert "Heading path: Background > Service Overview" in chunks[0].text
     assert "Section: Service Overview" in chunks[0].text
 

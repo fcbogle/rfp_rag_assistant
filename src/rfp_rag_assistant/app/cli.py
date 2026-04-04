@@ -12,6 +12,7 @@ from rfp_rag_assistant.chunkers import (
     TenderDetailsChunker,
 )
 from rfp_rag_assistant.loaders import LocalDocumentLoader
+from rfp_rag_assistant.models import MasterRFPMetadata
 from rfp_rag_assistant.parsers import (
     BackgroundRequirementsParser,
     ResponseSupportingMaterialParser,
@@ -45,6 +46,46 @@ def build_parser() -> argparse.ArgumentParser:
         "--preview-tender-details-file",
         type=Path,
         help="Parse and chunk a tender_details .docx or .xlsx file, then print a JSON summary.",
+    )
+    parser.add_argument(
+        "--ingest-blob-documents",
+        action="store_true",
+        help="Ingest supported documents from Azure Blob into Chroma collections.",
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        help="Optional limit for blob ingestion runs.",
+    )
+    parser.add_argument(
+        "--issuing-authority",
+        type=str,
+        help="Optional issuing authority metadata for the ingestion run.",
+    )
+    parser.add_argument(
+        "--customer",
+        type=str,
+        help="Optional customer metadata for the ingestion run.",
+    )
+    parser.add_argument(
+        "--rfp-id",
+        type=str,
+        help="Optional RFP identifier metadata for the ingestion run.",
+    )
+    parser.add_argument(
+        "--rfp-title",
+        type=str,
+        help="Optional RFP title metadata for the ingestion run.",
+    )
+    parser.add_argument(
+        "--upload-local-folder",
+        type=Path,
+        help="Upload a local classified source folder tree into Azure Blob, preserving relative paths.",
+    )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Overwrite existing blobs during upload.",
     )
     return parser
 
@@ -119,6 +160,93 @@ def main() -> None:
         if suffix not in settings.supported_extensions:
             raise SystemExit(f"Unsupported source file type: {suffix}")
         print(f"Accepted source file: {args.source_file}")
+        return
+
+    if args.upload_local_folder is not None:
+        source_root = args.upload_local_folder
+        if not source_root.exists() or not source_root.is_dir():
+            raise SystemExit(f"Upload source folder does not exist or is not a directory: {source_root}")
+
+        uploaded: list[dict[str, str]] = []
+        skipped = 0
+        for local_path in sorted(path for path in source_root.rglob("*") if path.is_file()):
+            relative_path = local_path.relative_to(source_root)
+            if relative_path.parts and relative_path.parts[0].startswith("."):
+                skipped += 1
+                continue
+            blob_name = app.container.blob_service.upload_file_to_blob(
+                settings.azure_storage.container,
+                local_path,
+                relative_to=source_root,
+                overwrite=args.overwrite,
+            )
+            uploaded.append(
+                {
+                    "local_path": str(local_path),
+                    "blob_name": blob_name,
+                }
+            )
+
+        print(
+            json.dumps(
+                {
+                    "container_name": settings.azure_storage.container,
+                    "uploaded_count": len(uploaded),
+                    "skipped_count": skipped,
+                    "overwrite": args.overwrite,
+                    "files": uploaded[:50],
+                },
+                indent=2,
+            )
+        )
+        return
+
+    if args.ingest_blob_documents:
+        master_metadata = None
+        if any([args.issuing_authority, args.customer, args.rfp_id, args.rfp_title]):
+            master_metadata = MasterRFPMetadata(
+                issuing_authority=args.issuing_authority,
+                customer=args.customer,
+                rfp_id=args.rfp_id,
+                rfp_title=args.rfp_title,
+            )
+        app.container.ingestion_service.master_metadata = master_metadata
+        summary = app.container.ingestion_service.ingest_blob_documents(limit=args.limit)
+        print(
+            json.dumps(
+                {
+                    "document_count": summary.document_count,
+                    "chunk_count": summary.chunk_count,
+                    "indexing": {
+                        "total_chunks": summary.indexing.total_chunks,
+                        "collections": [
+                            {
+                                "document_type": item.document_type,
+                                "collection_name": item.collection_name,
+                                "chunk_count": item.chunk_count,
+                            }
+                            for item in summary.indexing.collections
+                        ],
+                    },
+                    "documents": [
+                        {
+                            "source_file": str(item.source_file),
+                            "document_type": item.document_type,
+                            "section_count": item.section_count,
+                            "chunk_count": item.chunk_count,
+                        }
+                        for item in summary.documents
+                    ],
+                    "master_metadata": {
+                        "issuing_authority": master_metadata.issuing_authority if master_metadata else None,
+                        "customer": master_metadata.customer if master_metadata else None,
+                        "rfp_id": master_metadata.rfp_id if master_metadata else None,
+                        "rfp_title": master_metadata.rfp_title if master_metadata else None,
+                    },
+                },
+                indent=2,
+            )
+        )
         return
 
     if args.preview_background_file is not None:

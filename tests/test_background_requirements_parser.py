@@ -2,6 +2,7 @@ from pathlib import Path
 from zipfile import ZipFile
 
 from rfp_rag_assistant.parsers import BackgroundRequirementsParser
+from openpyxl import Workbook
 
 
 def _write_minimal_docx(path: Path, document_xml: str) -> None:
@@ -92,3 +93,19 @@ def test_background_requirements_parser_extracts_real_background_document_sectio
     titles = [section.title for section in parsed.sections]
     assert "Current services" in titles
     assert "IT considerations" in titles
+
+
+def test_background_requirements_parser_dispatches_excel_background_file(tmp_path: Path) -> None:
+    source = tmp_path / "background-data.xlsx"
+    workbook = Workbook()
+    worksheet = workbook.active
+    worksheet.title = "Data"
+    worksheet.append(["Metric", "Value"])
+    worksheet.append(["Register", "123"])
+    workbook.save(source)
+
+    parsed = BackgroundRequirementsParser().parse_file(source)
+
+    assert parsed.document_type == "background_requirements"
+    assert parsed.metadata["subtype"] == "excel_background_requirements"
+    assert parsed.sections

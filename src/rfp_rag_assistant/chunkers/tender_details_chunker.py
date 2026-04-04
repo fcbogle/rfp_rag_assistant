@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from rfp_rag_assistant.chunkers.ids import build_chunk_id
 from rfp_rag_assistant.chunkers.splitting import TextSplitter
 from rfp_rag_assistant.models import Chunk, ChunkMetadata, ParsedDocument, ParsedSection, SourceReference
 
@@ -34,7 +35,7 @@ class TenderDetailsChunker:
 
         return [
             Chunk(
-                chunk_id=f"{section.section_id or 'section'}-chunk-{index}",
+                chunk_id=build_chunk_id(document.source_file, section.section_id or "section", index),
                 text=self._compose_chunk_text(section=section, content=segment),
                 embedding_text=self._compose_chunk_text(section=section, content=segment),
                 metadata=ChunkMetadata(
