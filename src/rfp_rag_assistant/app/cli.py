@@ -18,6 +18,7 @@ from rfp_rag_assistant.parsers import (
     ResponseSupportingMaterialParser,
     TenderDetailsParser,
 )
+from rfp_rag_assistant.source_paths import normalize_blob_upload_path
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -171,13 +172,14 @@ def main() -> None:
         skipped = 0
         for local_path in sorted(path for path in source_root.rglob("*") if path.is_file()):
             relative_path = local_path.relative_to(source_root)
-            if relative_path.parts and relative_path.parts[0].startswith("."):
+            if any(part.startswith(".") for part in relative_path.parts):
                 skipped += 1
                 continue
+            blob_path = normalize_blob_upload_path(relative_path)
             blob_name = app.container.blob_service.upload_file_to_blob(
                 settings.azure_storage.container,
                 local_path,
-                relative_to=source_root,
+                blob_name=blob_path.as_posix(),
                 overwrite=args.overwrite,
             )
             uploaded.append(

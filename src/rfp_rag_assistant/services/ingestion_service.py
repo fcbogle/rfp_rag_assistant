@@ -9,6 +9,7 @@ from typing import Any
 from rfp_rag_assistant.embeddings import IndexingSummary
 from rfp_rag_assistant.loaders.base import LoadedDocument
 from rfp_rag_assistant.models import Chunk, MasterRFPMetadata
+from rfp_rag_assistant.source_paths import infer_document_type_from_path
 
 
 @dataclass(slots=True, frozen=True)
@@ -128,9 +129,7 @@ class IngestionService:
                 chunk.structured_content.setdefault("rfp_title", metadata.rfp_title)
 
     def _document_type_for_path(self, source_file: Path) -> str:
-        if not source_file.parts:
-            raise ValueError(f"Cannot infer document_type from empty source path: {source_file}")
-        document_type = source_file.parts[0]
+        document_type = infer_document_type_from_path(source_file)
         if document_type not in self.parsers:
             raise ValueError(f"Unsupported document_type inferred from source path: {document_type}")
         return document_type

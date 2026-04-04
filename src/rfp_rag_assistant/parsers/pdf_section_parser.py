@@ -26,16 +26,25 @@ class PDFSectionParser:
         return self.parse_file(document.source_file)
 
     def parse_file(self, source_file: Path) -> ParsedDocument:
-        page_lines = self._extract_page_lines(source_file)
+        page_lines, page_image_flags = self._extract_page_lines(source_file)
         content_lines = self._filter_repeated_headers_and_footers(page_lines)
         sections = self._cleanup_sections(self._build_sections(source_file, content_lines))
+        empty_text_pages = sum(1 for lines in page_lines if not lines)
+        image_only_pdf = bool(page_lines) and empty_text_pages == len(page_lines) and all(page_image_flags)
+        if image_only_pdf:
+            self.logger.warning(
+                "PDF file=%s subtype=%s appears image-only and will require OCR for ingestion",
+                source_file.name,
+                self.subtype,
+            )
         self.logger.info(
-            "Parsed PDF file=%s subtype=%s pages=%s content_lines=%s sections=%s",
+            "Parsed PDF file=%s subtype=%s pages=%s content_lines=%s sections=%s image_only_pdf=%s",
             source_file.name,
             self.subtype,
             len(page_lines),
             len(content_lines),
             len(sections),
+            image_only_pdf,
         )
 
         return ParsedDocument(
@@ -48,6 +57,9 @@ class PDFSectionParser:
                 "subtype": self.subtype,
                 "page_count": len(page_lines),
                 "section_count": len(sections),
+                "empty_text_pages": empty_text_pages,
+                "image_only_pdf": image_only_pdf,
+                "ocr_required": image_only_pdf,
             },
         )
 
@@ -73,9 +85,10 @@ class PDFSectionParser:
 
         return cleaned
 
-    def _extract_page_lines(self, source_file: Path) -> list[list[str]]:
+    def _extract_page_lines(self, source_file: Path) -> tuple[list[list[str]], list[bool]]:
         reader = PdfReader(str(source_file))
         pages: list[list[str]] = []
+        page_image_flags: list[bool] = []
         for page in reader.pages:
             text = page.extract_text() or ""
             lines = []
@@ -84,7 +97,21 @@ class PDFSectionParser:
                 if line:
                     lines.append(line)
             pages.append(lines)
-        return pages
+            page_image_flags.append(self._page_contains_images(page))
+        return pages, page_image_flags
+
+    def _page_contains_images(self, page: object) -> bool:
+        resources = page.get("/Resources")
+        if not resources:
+            return False
+        xobject = resources.get("/XObject")
+        if not xobject:
+            return False
+        try:
+            resolved = xobject.get_object()
+        except Exception:
+            return False
+        return bool(resolved)
 
     def _filter_repeated_headers_and_footers(self, page_lines: list[list[str]]) -> list[str]:
         candidate_counter: Counter[str] = Counter()

@@ -7,6 +7,8 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from rfp_rag_assistant.models import MasterRFPMetadata
+from rfp_rag_assistant.reference_urls import load_reference_url_inventory
+from rfp_rag_assistant.source_paths import infer_document_type_from_path
 
 router = APIRouter()
 
@@ -51,6 +53,24 @@ def list_documents(request: Request) -> dict[str, Any]:
         "document_count": len(items),
         "counts_by_document_type": counts,
         "documents": items,
+    }
+
+
+@router.get("/reference-urls")
+def list_reference_urls() -> dict[str, Any]:
+    items = load_reference_url_inventory()
+    counts_by_document_type: dict[str, int] = {}
+    counts_by_status: dict[str, int] = {}
+    for item in items:
+        document_type = str(item["document_type"])
+        status = str(item["status"])
+        counts_by_document_type[document_type] = counts_by_document_type.get(document_type, 0) + 1
+        counts_by_status[status] = counts_by_status.get(status, 0) + 1
+    return {
+        "reference_url_count": len(items),
+        "counts_by_document_type": counts_by_document_type,
+        "counts_by_status": counts_by_status,
+        "items": items,
     }
 
 
@@ -110,4 +130,7 @@ def ingest_documents(request: Request, payload: IngestionRequest) -> dict[str, A
 
 
 def _document_type_for_path(source_file: Path) -> str:
-    return source_file.parts[0] if source_file.parts else ""
+    try:
+        return infer_document_type_from_path(source_file)
+    except ValueError:
+        return ""

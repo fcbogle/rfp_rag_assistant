@@ -179,3 +179,16 @@ def test_ingestion_service_rejects_unknown_blob_prefix() -> None:
         assert "Unsupported document_type" in str(exc)
     else:
         raise AssertionError("Expected unknown blob prefix to be rejected")
+
+
+def test_ingestion_service_maps_extracted_embedded_to_real_document_type() -> None:
+    source_file = Path("extracted_embedded/background_requirements/ParentDoc/attachment.docx")
+    loader = _StubBlobLoader(documents=[], loaded={})
+    service = IngestionService(
+        blob_document_loader=loader,
+        parsers={"background_requirements": _StubParser()},
+        chunkers={"background_requirements": _StubChunker()},
+        chroma_indexer=_StubIndexer(),
+    )
+
+    assert service._document_type_for_path(source_file) == "background_requirements"

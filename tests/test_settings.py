@@ -28,7 +28,7 @@ def test_settings_loads_from_config_and_env_file(tmp_path: Path) -> None:
     env_file = tmp_path / ".env"
     env_file.write_text(
         "RFP_RAG_LOG_LEVEL=DEBUG\n"
-        "RFP_RAG_SUPPORTED_EXTENSIONS=.docx,.xlsx\n"
+        "RFP_RAG_SUPPORTED_EXTENSIONS=.docx,.xlsx,.pdf\n"
         "OPENAI_CHAT_MODEL=gpt-5-mini\n"
         "RFP_RAG_DEFAULT_TOP_K=6\n"
         "AZURE_STORAGE_ACCOUNT=blob-account\n"
@@ -46,7 +46,7 @@ def test_settings_loads_from_config_and_env_file(tmp_path: Path) -> None:
     assert settings.index_dir == Path("configured-index")
     assert settings.log_level == "DEBUG"
     assert settings.default_prompt_mode == "grounded_answer"
-    assert settings.supported_extensions == (".docx", ".xlsx")
+    assert settings.supported_extensions == (".docx", ".xlsx", ".pdf")
     assert settings.openai.chat_model == "gpt-5-mini"
     assert settings.azure_storage.account == "blob-account"
     assert settings.azure_storage.container == "rfp-rag-assistant"

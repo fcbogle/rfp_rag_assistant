@@ -3,7 +3,7 @@ data_dir = "data"
 index_dir = "data/index"
 log_level = "INFO"
 default_prompt_mode = "retrieve_only"
-supported_extensions = [".docx", ".xlsx"]
+supported_extensions = [".docx", ".xlsx", ".pdf"]
 
 [openai]
 base_url = "https://api.openai.com/v1"

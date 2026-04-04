@@ -138,7 +138,7 @@ class AppSettings:
     index_dir: Path = Path("data/index")
     log_level: str = "INFO"
     default_prompt_mode: str = "retrieve_only"
-    supported_extensions: tuple[str, ...] = field(default_factory=lambda: (".docx", ".xlsx"))
+    supported_extensions: tuple[str, ...] = field(default_factory=lambda: (".docx", ".xlsx", ".pdf"))
     openai: OpenAISettings = field(default_factory=OpenAISettings)
     azure_openai: AzureOpenAISettings = field(default_factory=AzureOpenAISettings)
     azure_storage: AzureStorageSettings = field(default_factory=AzureStorageSettings)
@@ -178,7 +178,7 @@ class AppSettings:
             ),
             "supported_extensions": env_values.get(
                 "RFP_RAG_SUPPORTED_EXTENSIONS",
-                ",".join(app_config.get("supported_extensions", [".docx", ".xlsx"])),
+                ",".join(app_config.get("supported_extensions", [".docx", ".xlsx", ".pdf"])),
             ),
         }
 

@@ -15,7 +15,7 @@ class BlobDocumentLoader:
     blob_service: "BlobService"
     container_name: str
     prefix: str = ""
-    supported_extensions: tuple[str, ...] = (".docx", ".xlsx")
+    supported_extensions: tuple[str, ...] = (".docx", ".xlsx", ".pdf")
 
     def list_documents(self) -> list[Path]:
         blob_names = self.blob_service.list_blob_names(self.container_name, prefix=self.prefix)

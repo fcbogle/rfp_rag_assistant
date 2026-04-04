@@ -1220,6 +1220,7 @@ The API layer now exposes the first thin service endpoints needed for a React fr
 
 - `GET /health`
 - `GET /documents`
+- `GET /reference-urls`
 - `POST /ingestion`
 
 The design is intentionally thin:
@@ -1263,6 +1264,19 @@ The endpoint returns the same ingestion summary already produced by the current 
 - target Chroma collections
 - per-document results
 - master metadata applied during the run
+
+#### `GET /reference-urls`
+
+This endpoint exposes the reviewed external-reference inventory as a structured API payload for the UI.
+
+It currently returns:
+
+- total reviewed URL count
+- counts by source classification
+- counts by review status
+- the reviewed URL items themselves
+
+This is important because the user needs to understand not only which internal source files are available in Blob storage, but also which reviewed external references are considered part of the source context before ingestion decisions are made.
 
 ### Why Ingestion Is Synchronous For Now
 
@@ -1317,6 +1331,139 @@ What remains after this layer is:
   - document organisation
   - ingestion control
   - later query and evidence display
+
+## React Frontend Design
+
+The project now also has a minimal React frontend implemented using Vite.
+
+Current frontend scope:
+
+- display backend/API readiness
+- list Blob-backed source documents
+- list reviewed reference URLs derived from RFP material
+- group documents by classification
+- trigger synchronous ingestion runs
+- display ingestion summaries returned by the API
+
+### Frontend Technology Choice
+
+React was chosen over a lighter demo-oriented UI approach because this project is already moving toward a more application-like workflow:
+
+- source document organisation
+- ingestion control
+- operational status visibility
+- retrieval and evidence display
+- later draft-generation workflows
+
+Vite is used as the frontend dev server because it is simple, fast, and suitable for the current early-stage React setup.
+
+### Current UI Structure
+
+The current implemented screen combines two operational views:
+
+- ingestion control
+- source inventory
+
+Implemented behaviors:
+
+- a top navigation strip with the Blatchford logo
+- a branded header card describing the current workspace purpose
+- a synchronous ingestion form that posts to `POST /ingestion`
+- document inventory loaded from `GET /documents`
+- reviewed reference URL inventory loaded from `GET /reference-urls`
+- ingestion summary rendering from the API response
+
+### Current Document Inventory Behavior
+
+The document inventory is now grouped client-side by `document_type` and shown as collapsible sections.
+
+This was chosen because:
+
+- it makes the Blob-backed corpus easier to scan than one long flat table
+- the existing API response already contains enough metadata for client-side grouping
+- it avoids unnecessary backend complexity at this stage
+
+The current classification groups align with the ingestion design:
+
+- `combined_qa`
+- `response_supporting_material`
+- `background_requirements`
+- `tender_details`
+- `external_reference`
+
+Embedded extracted files are no longer intended to appear as a separate top-level classification in the UI. Instead:
+
+- they are flattened during Blob upload into their real classification path
+- they appear under the relevant classification accordion
+- they remain distinguishable through `embedded/...` path segments rather than a separate top-level bucket
+
+### Current Reference URL Inventory Behavior
+
+The frontend now shows a second source-inventory card below Blob Documents for reviewed reference URLs.
+
+This was added because:
+
+- the source corpus is not only internal files in Blob
+- customer-cited and supplier-cited reviewed URLs also shape response context
+- users need to understand what the system is presenting before triggering ingestion
+
+Current behavior:
+
+- URLs are loaded from the backend-reviewed inventory
+- URLs are grouped by classification
+- each classification is collapsible
+- each URL shows:
+  - review status
+  - reference origin
+  - source format policy context
+  - clickable URL
+
+This gives the user a clearer pre-ingestion understanding of the full source landscape:
+
+- internal uploaded files
+- external reviewed references
+
+### Current Visual Design Direction
+
+The current frontend styling is now aligned to the Blatchford PowerPoint theme found in:
+
+- `Blatchford Powerpoint Template 2023.pptx`
+
+The extracted brand colors currently used are:
+
+- `#002A3A` navy
+- `#4C6F7A` slate
+- `#D7DFE2` light grey
+- `#008BA5` teal
+- `#80CA00` lime
+- `#F79000` orange
+- `#F00042` magenta
+
+Current styling decisions:
+
+- flat brand blocks rather than gradient-heavy surfaces
+- navy top navigation
+- dark branded ingestion area
+- light document-inventory area for readability
+- teal as the main action color
+- lime as the positive/ready accent
+
+The Blatchford logo asset has also been copied into the project-local frontend asset space so the UI does not depend directly on the reference project.
+
+### Current Frontend/Backend Dev Shape
+
+The current development workflow uses two local processes:
+
+- FastAPI backend via `uvicorn`
+- React frontend via Vite
+
+This is an expected development setup and keeps:
+
+- backend service logic
+- frontend iteration
+- API debugging
+
+cleanly separated while the application is still being built incrementally.
 
 ## Appendix: Reviewed URL Inventory
 

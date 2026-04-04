@@ -16,15 +16,22 @@ class _FakeFastAPI:
         self.version = version
         self.state = SimpleNamespace()
         self.routers = []
+        self.middlewares = []
 
     def include_router(self, router) -> None:
         self.routers.append(router)
+
+    def add_middleware(self, middleware, **kwargs) -> None:
+        self.middlewares.append((middleware, kwargs))
 
 
 def test_create_api_app_attaches_runtime(monkeypatch, tmp_path: Path) -> None:
     fake_fastapi_module = ModuleType("fastapi")
     fake_fastapi_module.FastAPI = _FakeFastAPI
+    fake_fastapi_cors_module = ModuleType("fastapi.middleware.cors")
+    fake_fastapi_cors_module.CORSMiddleware = object
     monkeypatch.setitem(sys.modules, "fastapi", fake_fastapi_module)
+    monkeypatch.setitem(sys.modules, "fastapi.middleware.cors", fake_fastapi_cors_module)
 
     config_dir = tmp_path / "config"
     config_dir.mkdir()
@@ -43,6 +50,7 @@ def test_create_api_app_attaches_runtime(monkeypatch, tmp_path: Path) -> None:
     assert app.state.container is app.state.runtime.container
     assert app.state.settings.retrieval.default_top_k == 11
     assert app.routers
+    assert app.middlewares
 
 
 def test_create_api_app_requires_fastapi(monkeypatch) -> None:

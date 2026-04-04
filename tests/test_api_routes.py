@@ -100,6 +100,38 @@ def test_documents_route_lists_blob_documents(monkeypatch) -> None:
     assert payload["documents"][0]["source_file"] == "combined_qa/ITT01.docx"
 
 
+def test_reference_urls_route_lists_inventory(monkeypatch) -> None:
+    client, _ = _build_test_client(monkeypatch)
+    monkeypatch.setattr(
+        "rfp_rag_assistant.api.routes.load_reference_url_inventory",
+        lambda: [
+            {
+                "document_type": "background_requirements",
+                "status": "ingest",
+                "reference_origin": "customer_cited",
+                "source_format": "docx_or_xlsx",
+                "url": "https://example.com/a",
+            },
+            {
+                "document_type": "combined_qa",
+                "status": "review",
+                "reference_origin": "supplier_cited",
+                "source_format": "docx_or_xlsx",
+                "url": "https://example.com/b",
+            },
+        ],
+    )
+
+    response = client.get("/reference-urls")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["reference_url_count"] == 2
+    assert payload["counts_by_document_type"]["background_requirements"] == 1
+    assert payload["counts_by_status"]["ingest"] == 1
+    assert payload["items"][0]["url"] == "https://example.com/a"
+
+
 def test_ingestion_route_triggers_ingestion_with_metadata(monkeypatch) -> None:
     client, ingestion = _build_test_client(monkeypatch)
 

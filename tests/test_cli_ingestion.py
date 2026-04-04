@@ -163,4 +163,46 @@ def test_cli_upload_command_preserves_relative_paths(monkeypatch, capsys, tmp_pa
     assert '"blob_name": "combined_qa/ITT01.docx"' in output
     assert '"blob_name": "response_supporting_material/plan.xlsx"' in output
     assert stub_blob.calls[0]["container_name"] == "rfp-rag-assistant"
-    assert stub_blob.calls[0]["relative_to"] == source_root
+    assert stub_blob.calls[0]["relative_to"] is None
+
+
+def test_cli_upload_command_flattens_extracted_embedded_paths(monkeypatch, capsys, tmp_path) -> None:
+    source_root = tmp_path / "RFP"
+    embedded = source_root / "extracted_embedded" / "background_requirements" / "ParentDoc"
+    embedded.mkdir(parents=True)
+    (embedded / "attachment.docx").write_bytes(b"docx")
+
+    stub_blob = _StubBlobService()
+    app = SimpleNamespace(
+        settings=SimpleNamespace(azure_storage=SimpleNamespace(container="rfp-rag-assistant")),
+        container=SimpleNamespace(blob_service=stub_blob),
+    )
+
+    monkeypatch.setattr(cli, "build_application", lambda: app)
+    monkeypatch.setattr(
+        cli,
+        "build_parser",
+        lambda: SimpleNamespace(
+            parse_args=lambda: SimpleNamespace(
+                print_config=False,
+                source_file=None,
+                preview_background_file=None,
+                preview_supporting_material_file=None,
+                preview_tender_details_file=None,
+                ingest_blob_documents=False,
+                upload_local_folder=source_root,
+                overwrite=True,
+                limit=None,
+                issuing_authority=None,
+                customer=None,
+                rfp_id=None,
+                rfp_title=None,
+            )
+        ),
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+    assert '"blob_name": "background_requirements/embedded/ParentDoc/attachment.docx"' in output
+    assert stub_blob.calls[0]["blob_name"] == "background_requirements/embedded/ParentDoc/attachment.docx"
