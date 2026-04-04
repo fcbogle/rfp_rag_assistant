@@ -8,9 +8,11 @@ Requires-Python: <3.12,>=3.11
 Description-Content-Type: text/markdown
 Requires-Dist: azure-storage-blob<13,>=12.25
 Requires-Dist: chromadb<2,>=1.1
+Requires-Dist: fastapi<1,>=0.115
 Requires-Dist: openai<2,>=1.75
 Requires-Dist: openpyxl<4,>=3.1
 Requires-Dist: pypdf<7,>=6.9
+Requires-Dist: uvicorn<1,>=0.30
 Provides-Extra: dev
 Requires-Dist: pytest>=8.0; extra == "dev"
 

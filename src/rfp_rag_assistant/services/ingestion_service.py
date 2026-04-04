@@ -36,8 +36,20 @@ class IngestionService:
     master_metadata: MasterRFPMetadata | None = None
     logger: logging.Logger = field(default_factory=lambda: logging.getLogger(__name__))
 
-    def ingest_blob_documents(self, *, limit: int | None = None) -> IngestionSummary:
+    def ingest_blob_documents(
+        self,
+        *,
+        limit: int | None = None,
+        document_types: list[str] | None = None,
+    ) -> IngestionSummary:
         source_files = self.blob_document_loader.list_documents()
+        if document_types:
+            allowed = set(document_types)
+            source_files = [
+                source_file
+                for source_file in source_files
+                if self._document_type_for_path(source_file) in allowed
+            ]
         if limit is not None:
             source_files = source_files[:limit]
 

@@ -9,6 +9,8 @@ src/rfp_rag_assistant.egg-info/dependency_links.txt
 src/rfp_rag_assistant.egg-info/entry_points.txt
 src/rfp_rag_assistant.egg-info/requires.txt
 src/rfp_rag_assistant.egg-info/top_level.txt
+src/rfp_rag_assistant/api/__init__.py
+src/rfp_rag_assistant/api/app.py
 src/rfp_rag_assistant/app/__init__.py
 src/rfp_rag_assistant/app/cli.py
 src/rfp_rag_assistant/app/main.py
@@ -17,6 +19,7 @@ src/rfp_rag_assistant/chunkers/__init__.py
 src/rfp_rag_assistant/chunkers/background_requirements_chunker.py
 src/rfp_rag_assistant/chunkers/base.py
 src/rfp_rag_assistant/chunkers/external_reference_chunker.py
+src/rfp_rag_assistant/chunkers/ids.py
 src/rfp_rag_assistant/chunkers/itt_combined_qa_chunker.py
 src/rfp_rag_assistant/chunkers/response_supporting_material_chunker.py
 src/rfp_rag_assistant/chunkers/splitting.py
@@ -58,7 +61,9 @@ src/rfp_rag_assistant/services/blob_service.py
 src/rfp_rag_assistant/services/container.py
 src/rfp_rag_assistant/services/draft_service.py
 src/rfp_rag_assistant/services/health_service.py
+src/rfp_rag_assistant/services/ingestion_service.py
 src/rfp_rag_assistant/services/query_service.py
+tests/test_api_app.py
 tests/test_azure_openai_embedder.py
 tests/test_background_preview_pipeline.py
 tests/test_background_requirements_chunker.py
@@ -68,10 +73,12 @@ tests/test_blob_service.py
 tests/test_chroma_indexer.py
 tests/test_chroma_schema.py
 tests/test_cli_config.py
+tests/test_cli_ingestion.py
 tests/test_config_wrapper.py
 tests/test_external_reference_chunker.py
 tests/test_external_reference_loader.py
 tests/test_html_reference_parser.py
+tests/test_ingestion_service.py
 tests/test_itt_combined_qa_chunker.py
 tests/test_itt_combined_qa_parser.py
 tests/test_local_document_loader.py

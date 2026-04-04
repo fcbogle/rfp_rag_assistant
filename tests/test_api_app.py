@@ -15,6 +15,10 @@ class _FakeFastAPI:
         self.title = title
         self.version = version
         self.state = SimpleNamespace()
+        self.routers = []
+
+    def include_router(self, router) -> None:
+        self.routers.append(router)
 
 
 def test_create_api_app_attaches_runtime(monkeypatch, tmp_path: Path) -> None:
@@ -38,6 +42,7 @@ def test_create_api_app_attaches_runtime(monkeypatch, tmp_path: Path) -> None:
     assert app.state.settings is app.state.runtime.settings
     assert app.state.container is app.state.runtime.container
     assert app.state.settings.retrieval.default_top_k == 11
+    assert app.routers
 
 
 def test_create_api_app_requires_fastapi(monkeypatch) -> None:

@@ -1,8 +1,10 @@
 azure-storage-blob<13,>=12.25
 chromadb<2,>=1.1
+fastapi<1,>=0.115
 openai<2,>=1.75
 openpyxl<4,>=3.1
 pypdf<7,>=6.9
+uvicorn<1,>=0.30
 
 [dev]
 pytest>=8.0

@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from rfp_rag_assistant.app.main import Application, build_application
+from rfp_rag_assistant.api.routes import router as api_router
 
 
 def create_api_app(
@@ -26,6 +27,7 @@ def create_api_app(
         version="0.1.0",
     )
     _attach_runtime(app, runtime)
+    app.include_router(api_router)
     return app
 
 

@@ -540,6 +540,11 @@ Observed result:
 
 This is an expected consequence of current listing order and confirms that ingestion filtering by classification would be a useful next refinement.
 
+The first live run also drove two important backend refinements:
+
+- `background_requirements` parsing was widened from Word-only handling to mixed file-type dispatch
+- chunk IDs were shortened and stabilized to satisfy Chroma Cloud uniqueness and ID-size constraints
+
 ### Blob Bytes To Chunks Flow
 
 At present, Blob-loaded documents are received as bytes.
@@ -1084,11 +1089,11 @@ Current collection design:
 
 - collection per document classification
 - environment namespace prefix such as:
-  - `test_combined_qa`
-  - `test_response_supporting_material`
-  - `test_background_requirements`
-  - `test_tender_details`
-  - `test_external_reference`
+  - `test_rfp_combined_qa`
+  - `test_rfp_response_supporting_material`
+  - `test_rfp_background_requirements`
+  - `test_rfp_tender_details`
+  - `test_rfp_external_reference`
 
 If a non-default collection base name is later used, the current naming rule supports forms such as:
 
@@ -1182,11 +1187,136 @@ Rationale:
 - live Blob-backed upload and indexing path validated
 - first successful Chroma population completed for `test_rfp_background_requirements`
 
+## FastAPI Bootstrap Design
+
+The project now has the first web-service bootstrap layer in place so backend functions can be exposed cleanly to a future React UI.
+
+Implemented components:
+
+- `create_api_app(...)`
+- `rfp_rag_assistant.api` package
+- API router registration
+- first ingestion-facing endpoints
+
+### Current FastAPI Bootstrap Behavior
+
+The API layer currently:
+
+- lazily imports `fastapi`
+- calls `Application.build()`
+- constructs the ASGI app
+- attaches the runtime to `app.state`
+
+Attached runtime objects include:
+
+- `app.state.runtime`
+- `app.state.application`
+- `app.state.settings`
+- `app.state.container`
+
+### Current FastAPI Router Behavior
+
+The API layer now exposes the first thin service endpoints needed for a React frontend:
+
+- `GET /health`
+- `GET /documents`
+- `POST /ingestion`
+
+The design is intentionally thin:
+
+- route handlers validate request data
+- route handlers call services already assembled in `AppContainer`
+- response payloads are direct summaries of backend service output
+
+This keeps orchestration in the existing service layer rather than duplicating business logic in the web layer.
+
+#### `GET /health`
+
+This endpoint delegates to the existing health service and gives the UI a simple readiness check for the backend runtime.
+
+#### `GET /documents`
+
+This endpoint lists Blob-backed source files and returns a UI-friendly summary including:
+
+- `source_file`
+- `document_type`
+- `file_type`
+- document counts by classification
+
+This is the first backend contract needed for a document-organisation screen in React.
+
+#### `POST /ingestion`
+
+This endpoint triggers the existing Blob-backed ingestion pipeline and accepts run-level metadata such as:
+
+- `issuing_authority`
+- `customer`
+- `rfp_id`
+- `rfp_title`
+- optional `limit`
+- optional `document_types`
+
+The endpoint returns the same ingestion summary already produced by the current service layer, including:
+
+- document counts
+- chunk counts
+- target Chroma collections
+- per-document results
+- master metadata applied during the run
+
+### Why Ingestion Is Synchronous For Now
+
+The first API design keeps ingestion synchronous.
+
+This means:
+
+- the client calls `POST /ingestion`
+- ingestion runs to completion within that request
+- the response returns the final summary
+
+This is the right current choice because:
+
+- the ingestion pipeline is now working and testable end to end
+- synchronous execution is easier to debug than a background job system
+- the first React UI mainly needs to trigger and inspect controlled ingestion runs
+- asynchronous job tracking would add operational complexity before it is necessary
+
+The backend design is still compatible with moving later to a background job/status model if ingestion duration or UI requirements justify it.
+
+### Design Rationale
+
+- `Application.build()` remains the single place where runtime config and container assembly happen
+- the API layer should reuse that runtime rather than reconstructing dependencies independently
+- this keeps:
+  - CLI
+  - background ingestion
+  - future API routes
+  aligned to the same backend service graph
+
+This is also the correct long-term shape for running the service under `uvicorn` using an app factory.
+
+Example future entrypoint:
+
+- `uvicorn rfp_rag_assistant.api:create_api_app --factory`
+
+### Why This Matters Now
+
+The frontend direction is now moving toward:
+
+- FastAPI backend
+- React frontend
+
+So the API bootstrap is the first step in turning the current backend services into web-accessible ingestion and retrieval endpoints without changing the underlying runtime design.
+
 What remains after this layer is:
 
 - retrieval across the collections
-- end-to-end indexing against a live Chroma target
+- end-to-end indexing across the higher-value corpora using targeted classification filters
 - evaluation of retrieval quality by corpus
+- React UI pages for:
+  - document organisation
+  - ingestion control
+  - later query and evidence display
 
 ## Appendix: Reviewed URL Inventory
 
