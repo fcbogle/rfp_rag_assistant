@@ -3,11 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
+from rfp_rag_assistant.corpus_info import build_corpus_info
 from rfp_rag_assistant.models import MasterRFPMetadata
 from rfp_rag_assistant.reference_urls import load_reference_url_inventory
+from rfp_rag_assistant.rfp_scopes import list_rfp_scopes, resolve_scope
 from rfp_rag_assistant.source_paths import infer_document_type_from_path
 
 router = APIRouter()
@@ -27,9 +29,25 @@ def get_health(request: Request) -> dict[str, bool]:
     return request.app.state.container.health_service.check()
 
 
+@router.get("/rfp-scopes")
+def get_rfp_scopes() -> dict[str, Any]:
+    scopes = list_rfp_scopes()
+    return {
+        "scope_count": len(scopes),
+        "scopes": scopes,
+    }
+
+
 @router.get("/documents")
-def list_documents(request: Request) -> dict[str, Any]:
+def list_documents(
+    request: Request,
+    rfp_id: str | None = Query(default=None),
+    submission_id: str | None = Query(default=None),
+) -> dict[str, Any]:
     container = request.app.state.container
+    scope = resolve_scope(rfp_id=rfp_id, submission_id=submission_id)
+    if (rfp_id or submission_id) and scope is None:
+        raise HTTPException(status_code=404, detail="Requested RFP/submission scope was not found")
     try:
         documents = container.blob_document_loader.list_documents()
     except Exception as exc:  # pragma: no cover - operational path
@@ -40,6 +58,8 @@ def list_documents(request: Request) -> dict[str, Any]:
             "source_file": document.as_posix(),
             "document_type": _document_type_for_path(document),
             "file_type": document.suffix.lstrip(".").lower(),
+            "support_status": _support_status_for_path(document),
+            "ingestion_status": "not_tracked",
         }
         for document in documents
     ]
@@ -48,6 +68,7 @@ def list_documents(request: Request) -> dict[str, Any]:
         counts[item["document_type"]] = counts.get(item["document_type"], 0) + 1
 
     return {
+        "scope": scope,
         "container_name": container.blob_document_loader.container_name,
         "prefix": container.blob_document_loader.prefix,
         "document_count": len(items),
@@ -56,8 +77,30 @@ def list_documents(request: Request) -> dict[str, Any]:
     }
 
 
+@router.get("/corpus-info")
+def get_corpus_info(
+    request: Request,
+    rfp_id: str | None = Query(default=None),
+    submission_id: str | None = Query(default=None),
+) -> dict[str, Any]:
+    container = request.app.state.container
+    settings = request.app.state.settings
+    scope = resolve_scope(rfp_id=rfp_id, submission_id=submission_id)
+    if (rfp_id or submission_id) and scope is None:
+        raise HTTPException(status_code=404, detail="Requested RFP/submission scope was not found")
+    payload = build_corpus_info(settings, container.chroma_indexer)
+    payload["scope"] = scope
+    return payload
+
+
 @router.get("/reference-urls")
-def list_reference_urls() -> dict[str, Any]:
+def list_reference_urls(
+    rfp_id: str | None = Query(default=None),
+    submission_id: str | None = Query(default=None),
+) -> dict[str, Any]:
+    scope = resolve_scope(rfp_id=rfp_id, submission_id=submission_id)
+    if (rfp_id or submission_id) and scope is None:
+        raise HTTPException(status_code=404, detail="Requested RFP/submission scope was not found")
     items = load_reference_url_inventory()
     counts_by_document_type: dict[str, int] = {}
     counts_by_status: dict[str, int] = {}
@@ -67,6 +110,7 @@ def list_reference_urls() -> dict[str, Any]:
         counts_by_document_type[document_type] = counts_by_document_type.get(document_type, 0) + 1
         counts_by_status[status] = counts_by_status.get(status, 0) + 1
     return {
+        "scope": scope,
         "reference_url_count": len(items),
         "counts_by_document_type": counts_by_document_type,
         "counts_by_status": counts_by_status,
@@ -134,3 +178,12 @@ def _document_type_for_path(source_file: Path) -> str:
         return infer_document_type_from_path(source_file)
     except ValueError:
         return ""
+
+
+def _support_status_for_path(source_file: Path) -> str:
+    suffix = source_file.suffix.lower()
+    if suffix in {".docx", ".xlsx", ".pdf"}:
+        return "supported"
+    if suffix == ".pptx":
+        return "unsupported"
+    return "unknown"

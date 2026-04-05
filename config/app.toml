@@ -21,12 +21,14 @@ account = ""
 key = ""
 container = "rfp-rag-assistant"
 prefix = "incoming/"
+region = ""
 
 [chroma]
 endpoint = ""
 api_key = ""
 tenant = ""
 database = ""
+region = ""
 namespace = "test_rfp"
 collection = "rfp_answers"
 

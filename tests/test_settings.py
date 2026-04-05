@@ -34,7 +34,9 @@ def test_settings_loads_from_config_and_env_file(tmp_path: Path) -> None:
         "AZURE_STORAGE_ACCOUNT=blob-account\n"
         "RFP_RAG_BLOB_CONTAINER=rfp-rag-assistant\n"
         "RFP_RAG_BLOB_PREFIX=incoming/\n"
+        "AZURE_STORAGE_REGION=uksouth\n"
         "RFP_RAG_CHROMA_NAMESPACE=test\n"
+        "CHROMA_REGION=eu-west-2\n"
         "RFP_RAG_CHUNK_SIZE_TOKENS=512\n"
         "RFP_RAG_OVERLAP_TOKENS=128\n"
         "RFP_RAG_LOG_TO_FILE=true\n"
@@ -51,6 +53,8 @@ def test_settings_loads_from_config_and_env_file(tmp_path: Path) -> None:
     assert settings.azure_storage.account == "blob-account"
     assert settings.azure_storage.container == "rfp-rag-assistant"
     assert settings.azure_storage.prefix == "incoming/"
+    assert settings.azure_storage.region == "uksouth"
+    assert settings.chroma.region == "eu-west-2"
     assert settings.chroma.namespace == "test"
     assert settings.chroma.collection == "rfp_history"
     assert settings.retrieval.default_top_k == 6

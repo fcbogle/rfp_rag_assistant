@@ -92,6 +92,7 @@ class AzureStorageSettings:
     key: str = ""
     container: str = "rfp-rag-assistant"
     prefix: str = "incoming/"
+    region: str = ""
 
 
 @dataclass(slots=True, frozen=True)
@@ -100,6 +101,7 @@ class ChromaSettings:
     api_key: str = ""
     tenant: str = ""
     database: str = ""
+    region: str = ""
     namespace: str = "dev"
     collection: str = "rfp_answers"
 
@@ -270,6 +272,10 @@ class AppSettings:
                     "RFP_RAG_BLOB_PREFIX",
                     env_values.get("RFP_RAG_BLOB_PREFIX", azure_storage_config.get("prefix", "incoming/")),
                 ),
+                region=os.getenv(
+                    "AZURE_STORAGE_REGION",
+                    env_values.get("AZURE_STORAGE_REGION", azure_storage_config.get("region", "")),
+                ),
             ),
             chroma=ChromaSettings(
                 endpoint=os.getenv(
@@ -287,6 +293,10 @@ class AppSettings:
                 database=os.getenv(
                     "CHROMA_DATABASE",
                     env_values.get("CHROMA_DATABASE", chroma_config.get("database", "")),
+                ),
+                region=os.getenv(
+                    "CHROMA_REGION",
+                    env_values.get("CHROMA_REGION", chroma_config.get("region", "")),
                 ),
                 namespace=os.getenv(
                     "RFP_RAG_CHROMA_NAMESPACE",

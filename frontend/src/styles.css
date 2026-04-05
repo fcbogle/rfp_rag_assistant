@@ -18,7 +18,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -53,7 +54,7 @@ input {
 .nav-brand-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .nav-title-block {
@@ -73,8 +74,11 @@ input {
 
 .nav-logo {
   display: block;
-  height: 28px;
-  width: auto;
+  width: 84px;
+  height: 84px;
+  border-radius: 10px;
+  object-fit: cover;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
 }
 
 .brand-kicker {
@@ -98,12 +102,18 @@ input {
   color: rgba(255, 255, 255, 0.78);
   font-size: 0.9rem;
   border: 1px solid rgba(255, 255, 255, 0.14);
+  cursor: pointer;
 }
 
 .nav-link.active {
   background: rgba(255, 255, 255, 0.12);
   color: #ffffff;
   font-weight: 700;
+}
+
+.nav-link-disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 
 .hero {
@@ -200,9 +210,82 @@ input {
   color: #4c6f7a;
 }
 
+.scope-bar {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr auto;
+  gap: 18px;
+  align-items: end;
+  margin-bottom: 24px;
+  padding: 18px 22px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(76, 111, 122, 0.14);
+  box-shadow: 0 12px 24px rgba(0, 42, 58, 0.06);
+}
+
+.scope-bar-copy strong {
+  display: block;
+  margin-bottom: 4px;
+  font-family: "IBM Plex Serif", Georgia, serif;
+  font-size: 1.1rem;
+}
+
+.scope-bar-copy p {
+  margin: 0;
+  color: #4c6f7a;
+}
+
+.scope-selectors {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.scope-selectors label {
+  display: grid;
+  gap: 6px;
+}
+
+.scope-selectors span {
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #4c6f7a;
+}
+
+.scope-selectors select {
+  width: 100%;
+  padding: 11px 13px;
+  border-radius: 12px;
+  border: 1px solid rgba(76, 111, 122, 0.18);
+  background: #ffffff;
+  color: #002a3a;
+}
+
+.scope-summary {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(215, 223, 226, 0.42);
+  color: #002a3a;
+  font-weight: 700;
+}
+
 .layout-grid {
   display: grid;
   grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
+  gap: 22px;
+}
+
+.documents-layout {
+  display: grid;
+  gap: 22px;
+}
+
+.documents-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 22px;
 }
 
@@ -219,6 +302,89 @@ input {
 .panel-form {
   background: #002a3a;
   color: #ffffff;
+}
+
+.panel-intro,
+.panel-side-summary {
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.context-sections {
+  display: grid;
+  gap: 18px;
+}
+
+.context-block {
+  display: grid;
+  gap: 12px;
+}
+
+.context-heading {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #4c6f7a;
+}
+
+.panel-span {
+  grid-column: 1 / -1;
+}
+
+.info-list {
+  display: grid;
+  gap: 12px;
+}
+
+.info-list div {
+  display: grid;
+  gap: 4px;
+}
+
+.info-list span {
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #4c6f7a;
+}
+
+.info-list strong {
+  color: #002a3a;
+  font-size: 0.98rem;
+}
+
+.classification-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.classification-card {
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(76, 111, 122, 0.14);
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.classification-kicker {
+  display: inline-block;
+  margin-bottom: 8px;
+  color: #008ba5;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.classification-card h3 {
+  margin: 0 0 10px;
+  font-family: "IBM Plex Serif", Georgia, serif;
+  font-size: 1.18rem;
+}
+
+.classification-card p {
+  margin: 0 0 10px;
+  color: #355763;
 }
 
 .panel-form .panel-header p,
@@ -328,6 +494,49 @@ input {
 .chip-option input {
   width: auto;
   margin: 0;
+}
+
+.chip-grid-readonly {
+  margin-bottom: 18px;
+}
+
+.chip-option-static {
+  cursor: default;
+}
+
+.compact-summary-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.compact-info-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: grid;
+  gap: 12px 14px;
+}
+
+.collection-list {
+  display: grid;
+  gap: 10px;
+}
+
+.collection-item {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid rgba(76, 111, 122, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.collection-item span {
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #4c6f7a;
+}
+
+.collection-item strong {
+  color: #002a3a;
 }
 
 .primary-button,
@@ -492,6 +701,43 @@ input {
   gap: 12px;
 }
 
+.status-list {
+  display: grid;
+  gap: 10px;
+}
+
+.status-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  border: 1px solid rgba(76, 111, 122, 0.14);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.status-item-main {
+  display: grid;
+  gap: 4px;
+}
+
+.status-item-main strong {
+  color: #002a3a;
+  word-break: break-word;
+}
+
+.status-item-main small {
+  color: #4c6f7a;
+}
+
+.status-item-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .reference-item {
   padding: 14px 16px;
   border: 1px solid rgba(76, 111, 122, 0.14);
@@ -525,6 +771,16 @@ input {
 .reference-status.status-review {
   background: rgba(247, 144, 0, 0.18);
   color: #9b5a00;
+}
+
+.reference-status.status-supported {
+  background: rgba(128, 202, 0, 0.18);
+  color: #007a12;
+}
+
+.reference-status.status-unsupported {
+  background: rgba(240, 0, 66, 0.12);
+  color: #b00037;
 }
 
 .reference-origin,
@@ -602,6 +858,19 @@ td {
     display: grid;
   }
 
+  .documents-overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .scope-bar {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .scope-selectors {
+    grid-template-columns: 1fr;
+  }
+
   .status-card {
     width: 100%;
   }
@@ -618,7 +887,9 @@ td {
   }
 
   .field-row,
-  .result-metrics {
+  .result-metrics,
+  .compact-info-list,
+  .compact-summary-grid {
     grid-template-columns: 1fr;
   }
 
