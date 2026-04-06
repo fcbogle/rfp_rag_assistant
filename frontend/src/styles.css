@@ -508,6 +508,10 @@ select {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.status-summary-grid {
+  margin-bottom: 18px;
+}
+
 .compact-info-list {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   display: grid;
@@ -517,6 +521,16 @@ select {
 .collection-list {
   display: grid;
   gap: 10px;
+}
+
+.collections-scanned-block {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.compact-collection-list {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
 .collection-item {

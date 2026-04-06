@@ -26,6 +26,14 @@ class ReconciledSourceStatus:
     collection_name: str | None = None
 
 
+@dataclass(slots=True, frozen=True)
+class ReconciliationSnapshot:
+    items: tuple[ReconciledSourceStatus, ...]
+    blob_file_count: int
+    indexed_source_count: int
+    collections_scanned: tuple[str, ...]
+
+
 @dataclass(slots=True)
 class ReconciliationService:
     blob_document_loader: Any
@@ -38,6 +46,13 @@ class ReconciliationService:
         *,
         document_types: list[str] | None = None,
     ) -> tuple[ReconciledSourceStatus, ...]:
+        return self.build_snapshot(document_types=document_types).items
+
+    def build_snapshot(
+        self,
+        *,
+        document_types: list[str] | None = None,
+    ) -> ReconciliationSnapshot:
         source_files = self.blob_document_loader.list_documents()
         indexed_sources = self.chroma_indexer.list_indexed_sources(document_types=document_types)
         allowed = set(document_types or [])
@@ -79,7 +94,21 @@ class ReconciliationService:
                 )
             )
 
-        return tuple(sorted(items, key=lambda item: (item.document_type, item.source_file.as_posix())))
+        collections_scanned = tuple(
+            sorted(
+                {
+                    str(item.get("collection_name"))
+                    for item in indexed_sources.values()
+                    if item.get("collection_name")
+                }
+            )
+        )
+        return ReconciliationSnapshot(
+            items=tuple(sorted(items, key=lambda item: (item.document_type, item.source_file.as_posix()))),
+            blob_file_count=len(items),
+            indexed_source_count=len(indexed_sources),
+            collections_scanned=collections_scanned,
+        )
 
 
 def _derive_ingestion_status(

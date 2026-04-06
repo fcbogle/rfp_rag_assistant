@@ -189,51 +189,58 @@ class _StubIngestionService:
 
 
 def _build_test_client(monkeypatch) -> tuple[TestClient, _StubIngestionService]:
+    reconciliation_items = (
+        SimpleNamespace(
+            source_file=Path("combined_qa/ITT01.docx"),
+            document_type="combined_qa",
+            file_type="docx",
+            support_status="supported",
+            ingestion_status="not_ingested",
+            chunk_count=0,
+            collection_name=None,
+            blob_etag="etag-a",
+            blob_last_modified=datetime(2026, 4, 5, 8, 0, tzinfo=UTC),
+            indexed_blob_etag=None,
+            indexed_blob_last_modified=None,
+            indexed_ingested_at=None,
+        ),
+        SimpleNamespace(
+            source_file=Path("response_supporting_material/plan.xlsx"),
+            document_type="response_supporting_material",
+            file_type="xlsx",
+            support_status="supported",
+            ingestion_status="ingested",
+            chunk_count=4,
+            collection_name="test_rfp_response_supporting_material",
+            blob_etag="etag-b",
+            blob_last_modified=datetime(2026, 4, 5, 8, 30, tzinfo=UTC),
+            indexed_blob_etag="etag-b",
+            indexed_blob_last_modified="2026-04-05T08:30:00+00:00",
+            indexed_ingested_at="2026-04-05T08:45:00+00:00",
+        ),
+        SimpleNamespace(
+            source_file=Path("background_requirements/specification.pdf"),
+            document_type="background_requirements",
+            file_type="pdf",
+            support_status="supported",
+            ingestion_status="stale",
+            chunk_count=2,
+            collection_name="test_rfp_background_requirements",
+            blob_etag="etag-c-new",
+            blob_last_modified=datetime(2026, 4, 5, 9, 0, tzinfo=UTC),
+            indexed_blob_etag="etag-c-old",
+            indexed_blob_last_modified="2026-04-04T09:00:00+00:00",
+            indexed_ingested_at="2026-04-04T09:30:00+00:00",
+        ),
+    )
     ingestion = _StubIngestionService()
     reconciliation = SimpleNamespace(
-        list_source_status=lambda **_: (
-            SimpleNamespace(
-                source_file=Path("combined_qa/ITT01.docx"),
-                document_type="combined_qa",
-                file_type="docx",
-                support_status="supported",
-                ingestion_status="not_ingested",
-                chunk_count=0,
-                collection_name=None,
-                blob_etag="etag-a",
-                blob_last_modified=datetime(2026, 4, 5, 8, 0, tzinfo=UTC),
-                indexed_blob_etag=None,
-                indexed_blob_last_modified=None,
-                indexed_ingested_at=None,
-            ),
-            SimpleNamespace(
-                source_file=Path("response_supporting_material/plan.xlsx"),
-                document_type="response_supporting_material",
-                file_type="xlsx",
-                support_status="supported",
-                ingestion_status="ingested",
-                chunk_count=4,
-                collection_name="test_rfp_response_supporting_material",
-                blob_etag="etag-b",
-                blob_last_modified=datetime(2026, 4, 5, 8, 30, tzinfo=UTC),
-                indexed_blob_etag="etag-b",
-                indexed_blob_last_modified="2026-04-05T08:30:00+00:00",
-                indexed_ingested_at="2026-04-05T08:45:00+00:00",
-            ),
-            SimpleNamespace(
-                source_file=Path("background_requirements/specification.pdf"),
-                document_type="background_requirements",
-                file_type="pdf",
-                support_status="supported",
-                ingestion_status="stale",
-                chunk_count=2,
-                collection_name="test_rfp_background_requirements",
-                blob_etag="etag-c-new",
-                blob_last_modified=datetime(2026, 4, 5, 9, 0, tzinfo=UTC),
-                indexed_blob_etag="etag-c-old",
-                indexed_blob_last_modified="2026-04-04T09:00:00+00:00",
-                indexed_ingested_at="2026-04-04T09:30:00+00:00",
-            ),
+        list_source_status=lambda **_: reconciliation_items,
+        build_snapshot=lambda **_: SimpleNamespace(
+            items=reconciliation_items,
+            blob_file_count=3,
+            indexed_source_count=2,
+            collections_scanned=("test_rfp_background_requirements", "test_rfp_response_supporting_material"),
         )
     )
     app_runtime = SimpleNamespace(
@@ -420,6 +427,9 @@ def test_source_status_route_lists_per_file_status_and_active_job(monkeypatch) -
     assert response.status_code == 200
     payload = response.json()
     assert payload["item_count"] == 3
+    assert payload["blob_file_count"] == 3
+    assert payload["indexed_source_count"] == 2
+    assert "test_rfp_background_requirements" in payload["collections_scanned"]
     assert payload["counts_by_ingestion_status"]["ingesting"] == 1
     assert payload["active_job"]["job_id"] == "job-123"
     assert payload["items"][1]["chunk_count"] == 4

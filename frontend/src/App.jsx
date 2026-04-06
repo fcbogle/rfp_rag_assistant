@@ -552,14 +552,49 @@ function App() {
           <button
             className="ghost-button"
             type="button"
+            disabled={sourceStatusState.loading}
             onClick={() => void loadSourceStatus()}
           >
-            Refresh source status
+            {sourceStatusState.loading ? "Refreshing..." : "Refresh source status"}
           </button>
         </div>
 
         {ingestionState.error ? <p className="error-text">{ingestionState.error}</p> : null}
         {sourceStatusState.error ? <p className="error-text">{sourceStatusState.error}</p> : null}
+
+        {sourceStatusState.data ? (
+          <div className="summary-grid status-summary-grid">
+            <article className="summary-card">
+              <span>Blob files scanned</span>
+              <strong>{sourceStatusState.data.blob_file_count}</strong>
+            </article>
+            <article className="summary-card">
+              <span>Indexed sources found</span>
+              <strong>{sourceStatusState.data.indexed_source_count}</strong>
+            </article>
+            <article className="summary-card">
+              <span>Collections scanned</span>
+              <strong>{sourceStatusState.data.collections_scanned.length}</strong>
+            </article>
+            <article className="summary-card">
+              <span>Refresh state</span>
+              <strong>{sourceStatusState.loading ? "Refreshing" : "Current"}</strong>
+            </article>
+          </div>
+        ) : null}
+
+        {sourceStatusState.data?.collections_scanned?.length ? (
+          <div className="collections-scanned-block">
+            <span className="context-heading">Collections scanned</span>
+            <div className="collection-list compact-collection-list">
+              {sourceStatusState.data.collections_scanned.map((collectionName) => (
+                <div className="collection-item" key={collectionName}>
+                  <strong>{collectionName}</strong>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         {activeIngestionJob ? (
           <div className="progress-block">

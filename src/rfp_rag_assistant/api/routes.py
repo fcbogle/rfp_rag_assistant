@@ -146,7 +146,8 @@ def get_source_ingestion_status(
         raise HTTPException(status_code=404, detail="Requested RFP/submission scope was not found")
     scope_kwargs = _scope_kwargs(scope)
     try:
-        items = container.reconciliation_service.list_source_status()
+        snapshot = container.reconciliation_service.build_snapshot()
+        items = snapshot.items
         active_job = container.ingestion_service.get_active_job(**scope_kwargs)
     except Exception as exc:  # pragma: no cover - operational path
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -163,6 +164,9 @@ def get_source_ingestion_status(
     return {
         "scope": scope,
         "item_count": len(payload_items),
+        "blob_file_count": snapshot.blob_file_count,
+        "indexed_source_count": snapshot.indexed_source_count,
+        "collections_scanned": list(snapshot.collections_scanned),
         "counts_by_document_type": type_counts,
         "counts_by_ingestion_status": status_counts,
         "active_job": _job_payload(active_job) if active_job else None,

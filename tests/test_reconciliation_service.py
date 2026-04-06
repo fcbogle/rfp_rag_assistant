@@ -78,3 +78,8 @@ def test_reconciliation_service_derives_not_ingested_ingested_and_stale() -> Non
     assert by_file["response_supporting_material/plan.xlsx"].ingestion_status == "ingested"
     assert by_file["response_supporting_material/plan.xlsx"].chunk_count == 4
     assert by_file["background_requirements/specification.pdf"].ingestion_status == "stale"
+
+    snapshot = service.build_snapshot()
+    assert snapshot.blob_file_count == 3
+    assert snapshot.indexed_source_count == 2
+    assert "test_rfp_background_requirements" in snapshot.collections_scanned
