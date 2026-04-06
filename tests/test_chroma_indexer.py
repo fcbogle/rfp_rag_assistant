@@ -14,6 +14,7 @@ from rfp_rag_assistant.models import Chunk, ChunkMetadata, SourceReference
 class _FakeCollection:
     name: str
     upsert_calls: list[dict[str, object]] = field(default_factory=list)
+    get_result: dict[str, object] = field(default_factory=lambda: {"metadatas": []})
 
     def upsert(
         self,
@@ -31,6 +32,9 @@ class _FakeCollection:
                 "embeddings": embeddings,
             }
         )
+
+    def get(self, *, include: list[str]) -> dict[str, object]:
+        return self.get_result
 
 
 @dataclass
@@ -175,3 +179,36 @@ def test_chroma_indexer_rejects_embedding_count_mismatch() -> None:
 
     with pytest.raises(ValueError, match="Embedding count mismatch for response_supporting_material"):
         indexer.upsert_chunks([_supporting_chunk(), _supporting_chunk()])
+
+
+def test_chroma_indexer_lists_indexed_sources_from_collection_metadata() -> None:
+    combined_collection = _FakeCollection(
+        name="test_combined_qa",
+        get_result={
+            "metadatas": [
+                {
+                    "source_file": "combined_qa/ITT01.docx",
+                    "blob_etag": "etag-1",
+                    "blob_last_modified": "2026-04-06T09:00:00+00:00",
+                    "ingested_at": "2026-04-06T09:05:00+00:00",
+                },
+                {
+                    "source_file": "combined_qa/ITT01.docx",
+                    "blob_etag": "etag-1",
+                    "blob_last_modified": "2026-04-06T09:00:00+00:00",
+                    "ingested_at": "2026-04-06T09:05:00+00:00",
+                },
+            ]
+        },
+    )
+    fake_client = _FakeClient(collections={"test_combined_qa": combined_collection})
+    indexer = ChromaIndexer(
+        settings=ChromaSettings(namespace="test", collection="rfp_answers"),
+        embedder=_FakeEmbedder(),
+        client_factory=lambda _: fake_client,
+    )
+
+    indexed = indexer.list_indexed_sources(document_types=["combined_qa"])
+
+    assert indexed["combined_qa/ITT01.docx"]["chunk_count"] == 2
+    assert indexed["combined_qa/ITT01.docx"]["blob_etag"] == "etag-1"

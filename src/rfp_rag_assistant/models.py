@@ -23,6 +23,11 @@ class ChunkMetadata:
     file_type: str
     document_type: str
     chunk_type: str
+    blob_name: str | None = None
+    blob_etag: str | None = None
+    blob_last_modified: datetime | None = None
+    blob_content_length: int | None = None
+    ingested_at: datetime | None = None
     issuing_authority: str | None = None
     rfp_id: str | None = None
     rfp_title: str | None = None

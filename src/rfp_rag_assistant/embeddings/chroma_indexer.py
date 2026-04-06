@@ -123,6 +123,53 @@ class ChromaIndexer:
             collections=tuple(results),
         )
 
+    def list_indexed_sources(self, *, document_types: list[str] | None = None) -> dict[str, dict[str, Any]]:
+        requested_types = document_types or [
+            "combined_qa",
+            "response_supporting_material",
+            "background_requirements",
+            "tender_details",
+            "external_reference",
+        ]
+        by_source: dict[str, dict[str, Any]] = {}
+        client = self._client_instance()
+
+        for document_type in requested_types:
+            collection_name = self.collection_name_for(document_type)
+            collection = client.get_or_create_collection(name=collection_name)
+            result = collection.get(include=["metadatas"])
+            metadatas = result.get("metadatas") or []
+            for metadata in metadatas:
+                if not metadata:
+                    continue
+                source_file = str(metadata.get("source_file", "")).strip()
+                if not source_file:
+                    continue
+                current = by_source.get(source_file)
+                blob_last_modified = metadata.get("blob_last_modified")
+                indexed_ingested_at = metadata.get("ingested_at")
+                if current is None:
+                    by_source[source_file] = {
+                        "source_file": source_file,
+                        "document_type": document_type,
+                        "collection_name": collection_name,
+                        "chunk_count": 1,
+                        "blob_etag": metadata.get("blob_etag"),
+                        "blob_last_modified": blob_last_modified,
+                        "ingested_at": indexed_ingested_at,
+                    }
+                    continue
+
+                current["chunk_count"] = int(current["chunk_count"]) + 1
+                if blob_last_modified and str(blob_last_modified) > str(current.get("blob_last_modified") or ""):
+                    current["blob_last_modified"] = blob_last_modified
+                if indexed_ingested_at and str(indexed_ingested_at) > str(current.get("ingested_at") or ""):
+                    current["ingested_at"] = indexed_ingested_at
+                if metadata.get("blob_etag"):
+                    current["blob_etag"] = metadata.get("blob_etag")
+
+        return by_source
+
     def _client_instance(self) -> Any:
         if self._client is None:
             factory = self.client_factory or _build_chroma_client

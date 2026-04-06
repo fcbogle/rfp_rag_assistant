@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 
 from rfp_rag_assistant.config.settings import AppSettings, AzureStorageSettings
@@ -35,6 +36,17 @@ class FakeBlobClient:
 
     def download_blob(self) -> FakeDownload:
         return FakeDownload(self.payload)
+
+    def get_blob_properties(self):
+        return type(
+            "FakeProperties",
+            (),
+            {
+                "etag": '"etag-456"',
+                "last_modified": datetime(2026, 4, 6, 9, 45, tzinfo=UTC),
+                "size": 1024,
+            },
+        )()
 
 
 @dataclass
@@ -97,6 +109,11 @@ def test_blob_service_supports_basic_client_operations() -> None:
     assert service.download_blob_bytes("rfp-rag-assistant", "incoming/example.docx") == (
         b"payload:incoming/example.docx"
     )
+    assert service.get_blob_properties("rfp-rag-assistant", "incoming/example.docx") == {
+        "etag": "etag-456",
+        "last_modified": datetime(2026, 4, 6, 9, 45, tzinfo=UTC),
+        "content_length": 1024,
+    }
 
     service.upload_blob_bytes(
         "rfp-rag-assistant",

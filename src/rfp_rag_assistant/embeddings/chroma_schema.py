@@ -71,6 +71,11 @@ def flatten_chunk_metadata(chunk: Chunk) -> dict[str, ScalarMetadata]:
     metadata: dict[str, ScalarMetadata] = {
         "chunk_id": chunk.chunk_id,
         "source_file": _as_string(chunk.metadata.source_file),
+        "blob_name": _as_scalar(chunk.metadata.blob_name),
+        "blob_etag": _as_scalar(chunk.metadata.blob_etag),
+        "blob_last_modified": _as_scalar(chunk.metadata.blob_last_modified),
+        "blob_content_length": _as_scalar(chunk.metadata.blob_content_length),
+        "ingested_at": _as_scalar(chunk.metadata.ingested_at),
         "file_type": chunk.metadata.file_type,
         "document_type": chunk.metadata.document_type,
         "chunk_type": chunk.metadata.chunk_type,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import mimetypes
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Protocol
 
@@ -65,6 +66,15 @@ class BlobService:
     def list_blob_names(self, container_name: str, *, prefix: str = "") -> list[str]:
         container = self.container_client(container_name)
         return [blob.name for blob in container.list_blobs(name_starts_with=prefix)]
+
+    def get_blob_properties(self, container_name: str, blob_name: str) -> dict[str, Any]:
+        blob_client = self.container_client(container_name).get_blob_client(blob_name)
+        properties = blob_client.get_blob_properties()
+        return {
+            "etag": _normalise_etag(getattr(properties, "etag", None)),
+            "last_modified": _normalise_datetime(getattr(properties, "last_modified", None)),
+            "content_length": getattr(properties, "size", None),
+        }
 
     def download_blob_bytes(self, container_name: str, blob_name: str) -> bytes:
         blob_client = self.container_client(container_name).get_blob_client(blob_name)
@@ -136,3 +146,18 @@ class BlobService:
         if not local_path.is_absolute():
             return local_path.as_posix()
         return local_path.name
+
+
+def _normalise_etag(value: Any) -> str | None:
+    if value in (None, ""):
+        return None
+    text = str(value).strip()
+    if text.startswith('"') and text.endswith('"'):
+        return text[1:-1]
+    return text
+
+
+def _normalise_datetime(value: Any) -> datetime | None:
+    if isinstance(value, datetime):
+        return value
+    return None

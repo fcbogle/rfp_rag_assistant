@@ -1,4 +1,5 @@
 from pathlib import Path
+from datetime import UTC, datetime
 
 from rfp_rag_assistant.config.settings import AppSettings, AzureStorageSettings
 from rfp_rag_assistant.loaders.blob_document_loader import BlobDocumentLoader
@@ -18,6 +19,13 @@ class StubBlobService(BlobService):
 
     def download_blob_bytes(self, container_name: str, blob_name: str) -> bytes:
         return f"downloaded:{container_name}:{blob_name}".encode()
+
+    def get_blob_properties(self, container_name: str, blob_name: str) -> dict[str, object]:
+        return {
+            "etag": "etag-123",
+            "last_modified": datetime(2026, 4, 6, 9, 30, tzinfo=UTC),
+            "content_length": 2048,
+        }
 
 
 def test_blob_document_loader_lists_supported_documents() -> None:
@@ -46,3 +54,6 @@ def test_blob_document_loader_loads_blob_into_loaded_document() -> None:
     assert loaded.file_type == "docx"
     assert loaded.payload == b"downloaded:rfp-rag-assistant:incoming/Annex A.docx"
     assert loaded.metadata["container_name"] == "rfp-rag-assistant"
+    assert loaded.metadata["blob_name"] == "incoming/Annex A.docx"
+    assert loaded.metadata["blob_etag"] == "etag-123"
+    assert loaded.metadata["blob_content_length"] == 2048

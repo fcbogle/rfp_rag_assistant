@@ -29,6 +29,7 @@ class BlobDocumentLoader:
     def load(self, source_file: Path) -> LoadedDocument:
         blob_name = str(source_file).replace("\\", "/")
         payload = self.blob_service.download_blob_bytes(self.container_name, blob_name)
+        blob_properties = self.blob_service.get_blob_properties(self.container_name, blob_name)
         return LoadedDocument(
             source_file=source_file,
             file_type=source_file.suffix.lstrip(".").lower(),
@@ -37,5 +38,8 @@ class BlobDocumentLoader:
                 "container_name": self.container_name,
                 "blob_name": blob_name,
                 "prefix": self.prefix,
+                "blob_etag": blob_properties.get("etag"),
+                "blob_last_modified": blob_properties.get("last_modified"),
+                "blob_content_length": blob_properties.get("content_length"),
             },
         )

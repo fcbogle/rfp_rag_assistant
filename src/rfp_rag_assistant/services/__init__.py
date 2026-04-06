@@ -6,6 +6,7 @@ from .draft_service import DraftService
 from .health_service import HealthService
 from .ingestion_service import IngestionService
 from .query_service import QueryService
+from .reconciliation_service import ReconciliationService
 
 __all__ = [
     "AppContainer",
@@ -14,5 +15,6 @@ __all__ = [
     "HealthService",
     "IngestionService",
     "QueryService",
+    "ReconciliationService",
     "build_blob_service",
 ]

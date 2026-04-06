@@ -27,6 +27,7 @@ from rfp_rag_assistant.services.draft_service import DraftService
 from rfp_rag_assistant.services.health_service import HealthService
 from rfp_rag_assistant.services.ingestion_service import IngestionService
 from rfp_rag_assistant.services.query_service import QueryService
+from rfp_rag_assistant.services.reconciliation_service import ReconciliationService
 
 
 class NullRetriever:
@@ -110,6 +111,20 @@ def build_ingestion_service(
     )
 
 
+def build_reconciliation_service(
+    blob_document_loader: BlobDocumentLoader,
+    blob_service: BlobService,
+    chroma_indexer: ChromaIndexer,
+    settings: AppSettings,
+) -> ReconciliationService:
+    return ReconciliationService(
+        blob_document_loader=blob_document_loader,
+        blob_service=blob_service,
+        chroma_indexer=chroma_indexer,
+        supported_extensions=settings.supported_extensions,
+    )
+
+
 @dataclass(slots=True)
 class AppContainer:
     settings: AppSettings
@@ -121,6 +136,7 @@ class AppContainer:
     embedder: AzureOpenAIEmbedder = field(init=False)
     chroma_indexer: ChromaIndexer = field(init=False)
     ingestion_service: IngestionService = field(init=False)
+    reconciliation_service: ReconciliationService = field(init=False)
     query_service: QueryService = field(init=False)
     draft_service: DraftService = field(init=False)
     health_service: HealthService = field(init=False)
@@ -140,6 +156,12 @@ class AppContainer:
             parsers=self.parsers,
             chunkers=self.chunkers,
             chroma_indexer=self.chroma_indexer,
+        )
+        self.reconciliation_service = build_reconciliation_service(
+            blob_document_loader=self.blob_document_loader,
+            blob_service=self.blob_service,
+            chroma_indexer=self.chroma_indexer,
+            settings=self.settings,
         )
         self.query_service = QueryService(retriever=self.retriever, settings=self.settings)
         self.draft_service = DraftService(query_service=self.query_service, settings=self.settings)

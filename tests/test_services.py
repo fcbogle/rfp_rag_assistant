@@ -47,6 +47,9 @@ def test_app_container_builds_service_graph() -> None:
     assert container.ingestion_service.parsers is container.parsers
     assert container.ingestion_service.chunkers is container.chunkers
     assert container.ingestion_service.chroma_indexer is container.chroma_indexer
+    assert container.reconciliation_service.blob_document_loader is container.blob_document_loader
+    assert container.reconciliation_service.blob_service is container.blob_service
+    assert container.reconciliation_service.chroma_indexer is container.chroma_indexer
     assert container.query_service.settings.retrieval.default_top_k == 7
     assert container.draft_service.query_service is container.query_service
 

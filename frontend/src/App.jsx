@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+const TERMINAL_JOB_STATUSES = new Set(["completed", "completed_with_errors", "failed"]);
 
 const DOCUMENT_TYPES = [
   "combined_qa",
@@ -36,6 +37,11 @@ function App() {
     data: null,
   });
   const [documentsState, setDocumentsState] = useState({
+    loading: true,
+    error: "",
+    data: null,
+  });
+  const [sourceStatusState, setSourceStatusState] = useState({
     loading: true,
     error: "",
     data: null,
@@ -84,10 +90,43 @@ function App() {
     if (!selectedScope.rfp_id && !selectedScope.submission_id) {
       return;
     }
+    setIngestionState({ loading: false, error: "", data: null });
     void loadCorpusInfo(selectedScope);
     void loadDocuments(selectedScope);
+    void loadSourceStatus(selectedScope);
     void loadReferenceUrls(selectedScope);
   }, [selectedScope.rfp_id, selectedScope.submission_id]);
+
+  useEffect(() => {
+    const activeJob = ingestionState.data ?? sourceStatusState.data?.active_job;
+    if (!activeJob?.job_id || TERMINAL_JOB_STATUSES.has(activeJob.status)) {
+      return undefined;
+    }
+
+    const handle = window.setInterval(async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/ingestion/jobs/${activeJob.job_id}`);
+        if (!response.ok) {
+          throw new Error(`Job polling failed with status ${response.status}`);
+        }
+        const payload = await response.json();
+        setIngestionState((current) => ({ ...current, loading: false, data: payload.job }));
+        await loadSourceStatus(selectedScope);
+        await loadDocuments(selectedScope);
+      } catch (error) {
+        setIngestionState((current) => ({ ...current, loading: false, error: error.message }));
+      }
+    }, 1500);
+
+    return () => window.clearInterval(handle);
+  }, [
+    ingestionState.data?.job_id,
+    ingestionState.data?.status,
+    sourceStatusState.data?.active_job?.job_id,
+    sourceStatusState.data?.active_job?.status,
+    selectedScope.rfp_id,
+    selectedScope.submission_id,
+  ]);
 
   async function loadHealth() {
     try {
@@ -146,6 +185,23 @@ function App() {
       setDocumentsState({ loading: false, error: "", data });
     } catch (error) {
       setDocumentsState({ loading: false, error: error.message, data: null });
+    }
+  }
+
+  async function loadSourceStatus(scope = selectedScope) {
+    setSourceStatusState((current) => ({ ...current, loading: true, error: "" }));
+    try {
+      const response = await fetch(`${API_BASE_URL}/ingestion/source-status${buildScopeQuery(scope)}`);
+      if (!response.ok) {
+        throw new Error(`Source status request failed with status ${response.status}`);
+      }
+      const data = await response.json();
+      setSourceStatusState({ loading: false, error: "", data });
+      if (!ingestionState.data && data.active_job) {
+        setIngestionState((current) => ({ ...current, data: data.active_job }));
+      }
+    } catch (error) {
+      setSourceStatusState({ loading: false, error: error.message, data: null });
     }
   }
 
@@ -241,18 +297,50 @@ function App() {
         .filter((group) => group.items.length > 0)
     : [];
 
-  async function handleSubmit(event) {
-    event.preventDefault();
+  const groupedSourceStatus = sourceStatusState.data
+    ? Object.keys(sourceStatusState.data.counts_by_document_type)
+        .sort((left, right) => {
+          const leftIndex = DOCUMENT_TYPES.indexOf(left);
+          const rightIndex = DOCUMENT_TYPES.indexOf(right);
+          if (leftIndex === -1 && rightIndex === -1) {
+            return left.localeCompare(right);
+          }
+          if (leftIndex === -1) {
+            return 1;
+          }
+          if (rightIndex === -1) {
+            return -1;
+          }
+          return leftIndex - rightIndex;
+        })
+        .map((documentType) => ({
+          documentType,
+          items: sourceStatusState.data.items.filter((item) => item.document_type === documentType),
+        }))
+        .filter((group) => group.items.length > 0)
+    : [];
+
+  const activeIngestionJob =
+    sourceStatusState.data?.active_job && !TERMINAL_JOB_STATUSES.has(sourceStatusState.data.active_job.status)
+      ? sourceStatusState.data.active_job
+      : ingestionState.data ?? sourceStatusState.data?.active_job ?? null;
+  const activeJobIsRunning =
+    activeIngestionJob && !TERMINAL_JOB_STATUSES.has(activeIngestionJob.status);
+
+  async function startIngestionJob({ documentTypes = null, sourceFiles = null } = {}) {
     setIngestionState({ loading: true, error: "", data: null });
 
     try {
       const payload = {
         ...form,
-        document_types: selectedDocumentTypes.length > 0 ? selectedDocumentTypes : null,
+        submission_id: selectedScope.submission_id || null,
+        document_types:
+          documentTypes ?? (selectedDocumentTypes.length > 0 ? selectedDocumentTypes : null),
+        source_files: sourceFiles,
         limit: Number(form.limit) || null,
       };
 
-      const response = await fetch(`${API_BASE_URL}/ingestion`, {
+      const response = await fetch(`${API_BASE_URL}/ingestion/jobs`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -266,11 +354,17 @@ function App() {
       }
 
       const data = await response.json();
-      setIngestionState({ loading: false, error: "", data });
+      setIngestionState({ loading: false, error: "", data: data.job });
+      void loadSourceStatus();
       void loadDocuments();
     } catch (error) {
       setIngestionState({ loading: false, error: error.message, data: null });
     }
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    await startIngestionJob();
   }
 
   function renderSourceInventory() {
@@ -442,40 +536,128 @@ function App() {
         <div className="panel-header">
           <h2>Source ingestion status</h2>
           <p>
-            This view is operational. It shows the same corpus entries as Documents, but framed for
-            ingestion decisions and run execution.
+            This is the operational control surface for ingestion jobs. Start classification or
+            file-level runs here and monitor progress against each source item.
           </p>
         </div>
-        {documentsState.data ? (
+        <div className="ingestion-actions">
+          <button
+            className="primary-button"
+            type="button"
+            disabled={ingestionState.loading || activeJobIsRunning}
+            onClick={() => void startIngestionJob()}
+          >
+            {activeJobIsRunning ? "Job running..." : "Run selected classifications"}
+          </button>
+          <button
+            className="ghost-button"
+            type="button"
+            onClick={() => void loadSourceStatus()}
+          >
+            Refresh source status
+          </button>
+        </div>
+
+        {ingestionState.error ? <p className="error-text">{ingestionState.error}</p> : null}
+        {sourceStatusState.error ? <p className="error-text">{sourceStatusState.error}</p> : null}
+
+        {activeIngestionJob ? (
+          <div className="progress-block">
+            <div className="progress-header">
+              <strong>
+                {activeIngestionJob.status === "queued"
+                  ? "Queued"
+                  : activeIngestionJob.status === "running"
+                    ? "In progress"
+                    : "Last job"}
+              </strong>
+              <span>
+                {activeIngestionJob.processed_documents}/{activeIngestionJob.total_documents} documents
+              </span>
+            </div>
+            <div className="progress-track">
+              <div
+                className={`progress-bar ${activeJobIsRunning ? "indeterminate" : ""}`}
+                style={
+                  activeJobIsRunning
+                    ? undefined
+                    : { width: `${activeIngestionJob.progress_percent || 0}%` }
+                }
+              />
+            </div>
+            <p className="muted-text">
+              {activeIngestionJob.current_phase} · {activeIngestionJob.total_chunks} chunks
+            </p>
+            {activeIngestionJob.errors?.length ? (
+              <div className="job-error-list">
+                {activeIngestionJob.errors.map((error) => (
+                  <p className="error-text compact-error" key={error}>
+                    {error}
+                  </p>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {sourceStatusState.data ? (
           <div className="accordion-list">
-            {groupedDocuments.map((group) => (
+            {groupedSourceStatus.map((group) => (
               <section className="accordion-section" key={`ingest-${group.documentType}`}>
-                <button
-                  className="accordion-trigger"
-                  type="button"
-                  onClick={() => toggleOpenSection(`ingest-${group.documentType}`)}
-                >
-                  <span>
-                    <strong>{group.documentType}</strong>
-                    <small>{group.documents.length} files</small>
-                  </span>
-                  <span className={`accordion-chevron ${openSections[`ingest-${group.documentType}`] ? "open" : ""}`}>
-                    ▾
-                  </span>
-                </button>
+                <div className="accordion-row">
+                  <button
+                    className="accordion-trigger"
+                    type="button"
+                    onClick={() => toggleOpenSection(`ingest-${group.documentType}`)}
+                  >
+                    <span>
+                      <strong>{group.documentType}</strong>
+                      <small>{group.items.length} files</small>
+                    </span>
+                    <span className={`accordion-chevron ${openSections[`ingest-${group.documentType}`] ? "open" : ""}`}>
+                      ▾
+                    </span>
+                  </button>
+                  <button
+                    className="ghost-button classification-action"
+                    type="button"
+                    disabled={ingestionState.loading || activeJobIsRunning}
+                    onClick={() => void startIngestionJob({ documentTypes: [group.documentType] })}
+                  >
+                    Ingest classification
+                  </button>
+                </div>
                 {openSections[`ingest-${group.documentType}`] ? (
                   <div className="status-list">
-                    {group.documents.map((document) => (
-                      <article className="status-item" key={`ingest-${document.source_file}`}>
+                    {group.items.map((document) => (
+                      <article className="status-item status-item-grid" key={`ingest-${document.source_file}`}>
                         <div className="status-item-main">
                           <strong>{document.source_file}</strong>
-                          <small>{document.file_type}</small>
+                          <small>
+                            {document.file_type}
+                            {document.chunk_count ? ` · ${document.chunk_count} chunks` : ""}
+                          </small>
+                          {document.last_error ? (
+                            <small className="status-error-text">{document.last_error}</small>
+                          ) : null}
                         </div>
                         <div className="status-item-tags">
                           <span className={`reference-status status-${document.support_status}`}>
                             {document.support_status}
                           </span>
-                          <span className="reference-origin">{document.ingestion_status}</span>
+                          <span className={`reference-status status-${document.ingestion_status}`}>
+                            {document.ingestion_status}
+                          </span>
+                        </div>
+                        <div className="status-item-actions">
+                          <button
+                            className="ghost-button row-action-button"
+                            type="button"
+                            disabled={ingestionState.loading || activeJobIsRunning}
+                            onClick={() => void startIngestionJob({ sourceFiles: [document.source_file] })}
+                          >
+                            {document.ingestion_status === "failed" ? "Retry file" : "Ingest file"}
+                          </button>
                         </div>
                       </article>
                     ))}
@@ -702,7 +884,7 @@ function App() {
           <section className="panel panel-form">
             <div className="panel-header">
               <h2>Ingestion Run</h2>
-              <p>Set run-level metadata once, then trigger a synchronous ingestion batch.</p>
+              <p>Set run-level metadata once. Use the source status card to trigger and monitor jobs.</p>
             </div>
 
             <form className="ingestion-form" onSubmit={handleSubmit}>
@@ -764,42 +946,11 @@ function App() {
                   ))}
                 </div>
               </fieldset>
-
-              <button className="primary-button" type="submit" disabled={ingestionState.loading}>
-                {ingestionState.loading ? "Running ingestion..." : "Run ingestion"}
-              </button>
             </form>
-
-            {ingestionState.error ? <p className="error-text">{ingestionState.error}</p> : null}
-
-            {ingestionState.loading ? (
-              <div className="progress-block">
-                <div className="progress-track">
-                  <div className="progress-bar" />
-                </div>
-                <p>Ingestion is running synchronously. Results will appear below when complete.</p>
-              </div>
-            ) : null}
-
-            {ingestionState.data ? (
-              <div className="result-card">
-                <div className="result-metrics">
-                  <div>
-                    <strong>{ingestionState.data.document_count}</strong>
-                    <span>documents</span>
-                  </div>
-                  <div>
-                    <strong>{ingestionState.data.chunk_count}</strong>
-                    <span>chunks</span>
-                  </div>
-                  <div>
-                    <strong>{ingestionState.data.indexing.total_chunks}</strong>
-                    <span>indexed</span>
-                  </div>
-                </div>
-                <pre>{JSON.stringify(ingestionState.data, null, 2)}</pre>
-              </div>
-            ) : null}
+            <p className="muted-text">
+              The selected classifications and file-level actions in Source ingestion status will
+              use this metadata for each ingestion job.
+            </p>
           </section>
           <section className="panel panel-side-summary">
             <div className="panel-header">
@@ -873,7 +1024,7 @@ function App() {
                 </article>
                 <article className="summary-card">
                   <span>Mode</span>
-                  <strong>Synchronous</strong>
+                  <strong>Tracked job</strong>
                 </article>
               </div>
             </div>

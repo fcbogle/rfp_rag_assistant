@@ -1,4 +1,5 @@
 from pathlib import Path
+from datetime import UTC, datetime
 import pytest
 
 from rfp_rag_assistant.embeddings import chunk_to_chroma_record, flatten_chunk_metadata
@@ -74,6 +75,44 @@ def test_chroma_schema_flattens_master_rfp_metadata() -> None:
     assert metadata["customer"] == "Sussex Community NHS Foundation Trust"
     assert metadata["rfp_id"] == "scft-wheelchair-2026"
     assert metadata["rfp_title"] == "Wheelchair and Specialist Seating Service"
+
+
+def test_chroma_schema_flattens_blob_version_metadata() -> None:
+    chunk = Chunk(
+        chunk_id="ITT01-chunk-1",
+        text="Question metadata: ITT01 | Clinical Governance",
+        embedding_text="Question metadata: ITT01 | Clinical Governance",
+        metadata=ChunkMetadata(
+            source_file=Path("combined_qa/ITT01-Clinical Governance-Blatchford.docx"),
+            file_type="docx",
+            document_type="combined_qa",
+            chunk_type="qa_pair",
+            blob_name="combined_qa/ITT01-Clinical Governance-Blatchford.docx",
+            blob_etag="etag-xyz",
+            blob_last_modified=datetime(2026, 4, 6, 10, 30, tzinfo=UTC),
+            blob_content_length=8192,
+            ingested_at=datetime(2026, 4, 6, 10, 45, tzinfo=UTC),
+            extra={
+                "section_title": "ITT01 - Clinical Governance",
+                "question_id": "ITT01",
+                "question_title": "Clinical Governance",
+                "question_text": "Please describe your clinical governance arrangements.",
+            },
+        ),
+        structured_content={
+            "question_id": "ITT01",
+            "question_title": "Clinical Governance",
+            "question_text": "Please describe your clinical governance arrangements.",
+        },
+    )
+
+    metadata = flatten_chunk_metadata(chunk)
+
+    assert metadata["blob_name"] == "combined_qa/ITT01-Clinical Governance-Blatchford.docx"
+    assert metadata["blob_etag"] == "etag-xyz"
+    assert metadata["blob_last_modified"] == "2026-04-06T10:30:00+00:00"
+    assert metadata["blob_content_length"] == 8192
+    assert metadata["ingested_at"] == "2026-04-06T10:45:00+00:00"
 
 
 def test_chroma_schema_flattens_response_supporting_material_spreadsheet_metadata() -> None:
